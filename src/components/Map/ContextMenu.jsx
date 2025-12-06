@@ -9,17 +9,34 @@ const ContextMenu = ({ position, onAddPoint, onClose }) => {
     top: position.y,
     zIndex: 200,
     backgroundColor: 'white',
-    padding: '8px 12px',
-    borderRadius: '4px',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
     cursor: 'pointer',
-    color: '#333',
+    color: '#2d3748',
     fontSize: '14px',
-    fontWeight: '500',
+    fontWeight: '600',
+    border: '2px solid #e2e8f0',
+    transition: 'all 0.2s',
+  };
+
+  const handleMouseEnter = (e) => {
+    e.target.style.backgroundColor = '#f7fafc';
+    e.target.style.borderColor = '#667eea';
+  };
+
+  const handleMouseLeave = (e) => {
+    e.target.style.backgroundColor = 'white';
+    e.target.style.borderColor = '#e2e8f0';
   };
 
   return (
-    <div style={style} onClick={onAddPoint}>
+    <div 
+      style={style} 
+      onClick={onAddPoint}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       + Add point
     </div>
   );

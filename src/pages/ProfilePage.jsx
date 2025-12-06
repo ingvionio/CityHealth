@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { getUserProgress, getUserAchievements } from '../services/gamificationService';
+import { getUserProgress, getUserAchievements, getUserActivity } from '../services/gamificationService';
 import './ProfilePage.css';
 
 const ProfilePage = () => {
@@ -10,6 +10,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(null);
   const [achievements, setAchievements] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [error, setError] = useState('');
 
   // Функция для получения иконки по типу достижения
@@ -56,10 +57,11 @@ const ProfilePage = () => {
         setLoading(true);
         setError('');
 
-        // Загружаем прогресс и достижения параллельно
-        const [progressData, achievementsData] = await Promise.all([
+        // Загружаем прогресс, достижения и последние 5 активностей параллельно
+        const [progressData, achievementsData, activitiesData] = await Promise.all([
           getUserProgress(user.id),
           getUserAchievements(user.id),
+          getUserActivity(user.id, 5), // Загружаем последние 5 активностей
         ]);
 
         setProgress(progressData);
@@ -108,6 +110,9 @@ const ProfilePage = () => {
 
         console.log('Все обработанные достижения:', formattedAchievements);
         setAchievements(formattedAchievements);
+        
+        // Сохраняем активности
+        setActivities(activitiesData || []);
       } catch (err) {
         console.error('Ошибка загрузки данных профиля:', err);
         setError(err.message || 'Ошибка загрузки данных');
@@ -117,6 +122,7 @@ const ProfilePage = () => {
           current_xp: 0,
         });
         setAchievements([]);
+        setActivities([]);
       } finally {
         setLoading(false);
       }
@@ -134,24 +140,6 @@ const ProfilePage = () => {
     progressPercentage: progress?.progress_percentage || 0,
   };
 
-  // ЗАГЛУШКА: История активности (будет получаться с бекенда)
-  const activityHistory = [
-    {
-      id: 1,
-      icon: '⭐',
-      action: 'Оценен объект "Парк Культуры и Отдыха"',
-      timeAgo: '2 дня назад',
-      points: 10,
-    },
-    {
-      id: 2,
-      icon: '💬',
-      action: 'Оставлен отзыв о "Кафе"',
-      timeAgo: '1 день назад',
-      points: 5,
-    },
-  ];
-
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -159,6 +147,57 @@ const ProfilePage = () => {
 
   const handleOpenMap = () => {
     navigate('/map');
+  };
+
+  // Функция для получения иконки по типу активности
+  const getActivityIcon = (type) => {
+    const iconMap = {
+      point_created: '📍',
+      mark_created: '⭐',
+      achievement_unlocked: '🏆',
+    };
+    return iconMap[type] || '📝';
+  };
+
+  // Функция для форматирования текста активности
+  const formatActivityText = (activity) => {
+    const { type, title, description } = activity;
+    
+    // Если есть готовый title, используем его
+    if (title) {
+      return title;
+    }
+    
+    // Форматируем в зависимости от типа
+    switch (type) {
+      case 'point_created':
+        return `Создана точка: ${description || 'Новая точка'}`;
+      case 'mark_created':
+        return `Оставлен отзыв: ${description || 'Новый отзыв'}`;
+      case 'achievement_unlocked':
+        return `Получено достижение: ${description || 'Новое достижение'}`;
+      default:
+        return description || 'Активность';
+    }
+  };
+
+  // Функция для форматирования времени активности
+  const formatTimeAgo = (timestamp) => {
+    if (!timestamp) return 'Недавно';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Только что';
+    if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'минуту' : diffMins < 5 ? 'минуты' : 'минут'} назад`;
+    if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'час' : diffHours < 5 ? 'часа' : 'часов'} назад`;
+    if (diffDays < 7) return `${diffDays} ${diffDays === 1 ? 'день' : diffDays < 5 ? 'дня' : 'дней'} назад`;
+    
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
   };
 
   if (loading) {
@@ -267,23 +306,39 @@ const ProfilePage = () => {
           )}
         </div>
 
-        {/* Карточка истории активности */}
+        {/* Карточка последних активностей */}
         <div className="profile-card">
           <div className="profile-card-header">
-            <h2>История активности</h2>
+            <h2>Последние активности</h2>
           </div>
-          <div className="activity-list">
-            {activityHistory.map((activity) => (
-              <div key={activity.id} className="activity-item">
-                <div className="activity-icon">{activity.icon}</div>
-                <div className="activity-content">
-                  <p className="activity-action">{activity.action}</p>
-                  <p className="activity-time">{activity.timeAgo}</p>
-                </div>
-                <div className="activity-points">+{activity.points}</div>
+          {activities.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#718096', padding: '20px' }}>
+              Активности не найдены
+            </p>
+          ) : (
+            <>
+              <div className="activity-list">
+                {activities.slice(0, 5).map((activity, index) => (
+                  <div key={activity.timestamp || index} className="activity-item">
+                    <div className="activity-icon">{getActivityIcon(activity.type)}</div>
+                    <div className="activity-content">
+                      <p className="activity-action">{formatActivityText(activity)}</p>
+                      <p className="activity-time">{formatTimeAgo(activity.timestamp)}</p>
+                    </div>
+                    {activity.xp_gained !== undefined && activity.xp_gained !== null && (
+                      <div className="activity-points">+{activity.xp_gained} XP</div>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <button 
+                onClick={() => navigate('/activity')} 
+                className="view-all-activities-button"
+              >
+                Посмотреть все активности
+              </button>
+            </>
+          )}
         </div>
 
         {/* Кнопка выхода */}

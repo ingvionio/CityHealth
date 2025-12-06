@@ -205,8 +205,27 @@ const AddPointModal = ({ isOpen, onClose, onSubmit, initialCoordinates }) => {
             </select>
           </div>
           <div style={styles.buttons}>
-             <button type="button" onClick={onClose} disabled={loading}>Отмена</button>
-             <button type="submit" disabled={loading || !selectedIndustryId || !selectedSubIndustryId}>
+             <button 
+               type="button" 
+               onClick={onClose} 
+              disabled={loading}
+              style={{
+                ...styles.button,
+                ...styles.buttonCancel,
+                ...(loading ? styles.buttonDisabled : {}),
+              }}
+            >
+              Отмена
+            </button>
+             <button 
+               type="submit" 
+               disabled={loading || !selectedIndustryId || !selectedSubIndustryId}
+               style={{
+                 ...styles.button,
+                 ...styles.buttonSubmit,
+                 ...((loading || !selectedIndustryId || !selectedSubIndustryId) ? styles.buttonDisabled : {}),
+               }}
+             >
                {loading ? 'Сохранение...' : 'Сохранить'}
              </button>
           </div>
@@ -257,6 +276,28 @@ const styles = {
     justifyContent: 'flex-end',
     gap: '10px',
     marginTop: '20px',
+  },
+  button: {
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  buttonCancel: {
+    background: '#f7fafc',
+    color: '#2d3748',
+    border: '2px solid #e2e8f0',
+  },
+  buttonSubmit: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+    cursor: 'not-allowed',
   },
   error: {
     backgroundColor: '#fed7d7',
