@@ -4,6 +4,7 @@ import { useMapLayers } from '../../hooks/useMapLayers';
 import { useMapInteractions } from '../../hooks/useMapInteractions';
 import { useMapClick } from '../../hooks/useMapClick';
 import { useMapContextMenu } from '../../hooks/useMapContextMenu';
+import { useHeatmapLayer } from '../../hooks/useHeatmapLayer';
 import { MapControls } from './MapControls';
 import Popup from './Popup';
 import ContextMenu from './ContextMenu';
@@ -12,6 +13,7 @@ import ReviewModal from './ReviewModal';
 import ReviewsModal from './ReviewsModal';
 import SearchBox from './SearchBox';
 import ActivityMenu from './ActivityMenu'; // Import ActivityMenu
+import MapLayerToggles from './MapLayerToggles';
 import { getAllPoints } from '../../services/pointsService';
 import { fromLonLat } from 'ol/proj';
 import 'ol/ol.css';
@@ -32,9 +34,13 @@ const MapComponent = () => {
   const [reviewsPointId, setReviewsPointId] = useState(null);
   const [reviewsPointName, setReviewsPointName] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false); // State for ActivityMenu
+  const [pointsData, setPointsData] = useState([]); // Store points data for search autocomplete
   
   const map = useMap(mapElement);
-  const vectorSource = useMapLayers(map, mode);
+  const { vectorSource, arePointsVisible, togglePointsVisibility } = useMapLayers(map, mode);
+  
+  // Heatmap layer hook
+  const { isHeatmapVisible, toggleHeatmap } = useHeatmapLayer(map, vectorSource);
 
   // Hooks
   useMapInteractions(map, vectorSource, mode);
@@ -47,6 +53,9 @@ const MapComponent = () => {
 
     try {
       const points = await getAllPoints();
+      
+      // Store points data for search autocomplete
+      setPointsData(points);
       
       // Очищаем все существующие точки перед загрузкой новых
       vectorSource.clear();
@@ -202,6 +211,7 @@ const MapComponent = () => {
         onSearch={handleSearch} 
         onMenuClick={() => setIsMenuOpen(true)} 
         isMenuOpen={isMenuOpen}
+        points={pointsData}
       />
 
       {/* ActivityMenu Component */}
@@ -209,6 +219,14 @@ const MapComponent = () => {
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
         onSelect={handleSelectActivity} 
+      />
+      
+      {/* Map Layer Toggle Buttons */}
+      <MapLayerToggles 
+        isHeatmapActive={isHeatmapVisible} 
+        onHeatmapToggle={toggleHeatmap}
+        arePointsVisible={arePointsVisible}
+        onPointsToggle={togglePointsVisibility}
       />
       
       <Popup 

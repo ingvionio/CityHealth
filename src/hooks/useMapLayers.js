@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import Cluster from 'ol/source/Cluster';
@@ -7,6 +7,8 @@ import { clusterStyle } from '../utils/mapStyles';
 export const useMapLayers = (map, mode) => {
   // Persist the actual data source across re-renders
   const [vectorSource] = useState(() => new VectorSource());
+  const [arePointsVisible, setArePointsVisible] = useState(true);
+  const vectorLayerRef = useRef(null);
 
   useEffect(() => {
     if (!map) return;
@@ -27,12 +29,23 @@ export const useMapLayers = (map, mode) => {
       style: clusterStyle,
     });
 
+    vectorLayerRef.current = vectorLayer;
     map.addLayer(vectorLayer);
 
     return () => {
       map.removeLayer(vectorLayer);
+      vectorLayerRef.current = null;
     };
   }, [map, vectorSource, mode]);
 
-  return vectorSource;
+  // Function to toggle points visibility
+  const togglePointsVisibility = useCallback(() => {
+    if (vectorLayerRef.current) {
+      const newVisibility = !arePointsVisible;
+      vectorLayerRef.current.setVisible(newVisibility);
+      setArePointsVisible(newVisibility);
+    }
+  }, [arePointsVisible]);
+
+  return { vectorSource, arePointsVisible, togglePointsVisibility };
 };
