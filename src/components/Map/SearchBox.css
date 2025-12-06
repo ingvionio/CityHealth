@@ -1,0 +1,88 @@
+/* Default Desktop Styles */
+.search-box {
+  position: absolute;
+  top: 20px;
+  left: 50px;
+  z-index: 201;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 8px 12px;
+  border-radius: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  backdrop-filter: blur(5px);
+  width: auto;
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: #333;
+  width: 200px;
+}
+
+.search-button {
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-button {
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  padding: 0 8px 0 0;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #e0e0e0; /* Separator line */
+  margin-right: 8px;
+}
+
+/* Mobile Styles (max-width 768px) */
+@media (max-width: 768px) {
+  .search-box {
+    top: auto; /* Reset top */
+    left: 0;
+    bottom: 0; /* Move to bottom */
+    width: 100%; /* Full width */
+    border-radius: 15px 15px 0 0; /* Rounded top corners only */
+    padding: 15px;
+    background: white; /* Solid background for better visibility */
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box; /* Ensure padding is included in width */
+    transition: bottom 0.3s ease-out; /* Animate slide up */
+  }
+
+  .search-box.menu-open {
+      bottom: 40vh; /* Slide up by menu height */
+  }
+
+  .search-input {
+    width: 100%; /* Input takes full available space */
+    font-size: 16px; /* Larger font for easier tapping */
+    padding: 8px;
+    background: #f5f5f5;
+    border-radius: 8px;
+  }
+
+  .search-button {
+    font-size: 20px;
+    padding: 0 0 0 15px;
+  }
+  
+  .menu-button {
+      padding: 0 15px 0 0;
+      font-size: 24px;
+  }
+}
