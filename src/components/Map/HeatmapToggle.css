@@ -1,0 +1,58 @@
+.heatmap-toggle {
+  position: absolute;
+  top: 70px;
+  left: 10px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a5568;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.heatmap-toggle:hover {
+  background: #f7fafc;
+  border-color: #e53e3e;
+  box-shadow: 0 6px 16px rgba(229, 62, 62, 0.15);
+  transform: translateY(-1px);
+}
+
+.heatmap-toggle.active {
+  background: linear-gradient(135deg, #f56565 0%, #ed8936 100%);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 6px 20px rgba(245, 101, 101, 0.35);
+}
+
+.heatmap-toggle.active:hover {
+  background: linear-gradient(135deg, #ed8936 0%, #f56565 100%);
+  transform: translateY(-1px);
+}
+
+.heatmap-toggle svg {
+  flex-shrink: 0;
+}
+
+.heatmap-toggle-label {
+  white-space: nowrap;
+}
+
+/* Responsive - hide text on small screens */
+@media (max-width: 480px) {
+  .heatmap-toggle {
+    padding: 10px;
+  }
+  
+  .heatmap-toggle-label {
+    display: none;
+  }
+}
+

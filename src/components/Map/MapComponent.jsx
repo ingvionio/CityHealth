@@ -4,6 +4,7 @@ import { useMapLayers } from '../../hooks/useMapLayers';
 import { useMapInteractions } from '../../hooks/useMapInteractions';
 import { useMapClick } from '../../hooks/useMapClick';
 import { useMapContextMenu } from '../../hooks/useMapContextMenu';
+import { useHeatmapLayer } from '../../hooks/useHeatmapLayer';
 import { MapControls } from './MapControls';
 import Popup from './Popup';
 import ContextMenu from './ContextMenu';
@@ -11,6 +12,7 @@ import AddPointModal from './AddPointModal';
 import ReviewModal from './ReviewModal';
 import SearchBox from './SearchBox';
 import ActivityMenu from './ActivityMenu'; // Import ActivityMenu
+import HeatmapToggle from './HeatmapToggle';
 import { getAllPoints } from '../../services/pointsService';
 import { fromLonLat } from 'ol/proj';
 import 'ol/ol.css';
@@ -31,6 +33,9 @@ const MapComponent = () => {
   
   const map = useMap(mapElement);
   const vectorSource = useMapLayers(map, mode);
+  
+  // Heatmap layer hook
+  const { isHeatmapVisible, toggleHeatmap } = useHeatmapLayer(map, vectorSource);
 
   // Hooks
   useMapInteractions(map, vectorSource, mode);
@@ -199,6 +204,12 @@ const MapComponent = () => {
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
         onSelect={handleSelectActivity} 
+      />
+      
+      {/* Heatmap Toggle Button */}
+      <HeatmapToggle 
+        isActive={isHeatmapVisible} 
+        onToggle={toggleHeatmap} 
       />
       
       <Popup 
