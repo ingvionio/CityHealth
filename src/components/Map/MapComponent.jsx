@@ -306,7 +306,6 @@ const MapComponent = () => {
         pointName={reviewsPointName}
       />
 
-      <MapControls mode={mode} setMode={setMode} />
     </div>
   );
 };
