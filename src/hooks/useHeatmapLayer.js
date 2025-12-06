@@ -14,24 +14,41 @@ export const useHeatmapLayer = (map, vectorSource) => {
   useEffect(() => {
     if (!map || !vectorSource) return;
 
-    // Create heatmap layer
+    // Create heatmap layer with larger blur and radius for stronger merging
     const heatmapLayer = new HeatmapLayer({
       source: vectorSource,
-      blur: 20,
-      radius: 15,
+      blur: 50,      // Larger blur for smoother blending
+      radius: 40,    // Bigger radius for stronger coverage
       // Weight function based on mark parameter (0-5)
+      // Only shows points with mark > 3
       weight: function (feature) {
         const mark = feature.get('mark');
-        // If mark is null, undefined, or 0, use a minimal weight
-        if (mark === null || mark === undefined || mark === 0) {
-          return 0.1; // Minimal visibility for points without marks
+        
+        // Points with mark <= 3, null, undefined, or 0 are NOT displayed
+        if (mark === null || mark === undefined || mark <= 3) {
+          return 0; // Hidden - not displayed on heatmap
         }
-        // Normalize mark (0-5) to (0-1) range
-        // Higher mark = more weight = more intense color
-        return Math.min(mark / 5, 1);
+        
+        // Map mark from (3, 5] to weight (0, 1]
+        // mark 3+ → weight ~0 (blue)
+        // mark 4 → weight 0.5 (yellow)
+        // mark 5 → weight 1 (green)
+        const normalizedWeight = (mark - 3) / 2; // (3,5] maps to (0,1]
+        return Math.min(Math.max(normalizedWeight, 0.01), 1); // Clamp to (0.01, 1]
       },
-      // Custom gradient from blue (low) to red (high)
-      gradient: ['#313695', '#4575b4', '#74add1', '#abd9e9', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026'],
+      // Custom gradient: blue (low/mark~3) → yellow (middle/mark~4) → green (high/mark~5)
+      gradient: [
+        '#2166ac', // Deep blue (weight 0, mark ~3)
+        '#4393c3', // Medium blue
+        '#92c5de', // Light blue
+        '#d1e5f0', // Very light blue
+        '#d9ef8b', // Light yellow/cream
+        '#d9ef8b', // Yellow (weight 0.5, mark ~4)
+        '#d9ef8b', // Yellow-green
+        '#a6d96a', // Light green
+        '#1a9850', // Medium green
+        '#1a9850', // Green (weight 1, mark 5)
+      ],
       visible: false, // Initially hidden
     });
 
