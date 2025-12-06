@@ -9,6 +9,7 @@ import Popup from './Popup';
 import ContextMenu from './ContextMenu';
 import AddPointModal from './AddPointModal';
 import ReviewModal from './ReviewModal';
+import ReviewsModal from './ReviewsModal';
 import SearchBox from './SearchBox';
 import ActivityMenu from './ActivityMenu'; // Import ActivityMenu
 import { getAllPoints } from '../../services/pointsService';
@@ -27,6 +28,9 @@ const MapComponent = () => {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [reviewPointId, setReviewPointId] = useState(null);
   const [reviewPointName, setReviewPointName] = useState('');
+  const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [reviewsPointId, setReviewsPointId] = useState(null);
+  const [reviewsPointName, setReviewsPointName] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false); // State for ActivityMenu
   
   const map = useMap(mapElement);
@@ -177,6 +181,12 @@ const MapComponent = () => {
     setIsReviewModalOpen(true);
   };
 
+  const handleViewReviewsClick = (pointId, pointName) => {
+    setReviewsPointId(pointId);
+    setReviewsPointName(pointName);
+    setIsReviewsModalOpen(true);
+  };
+
   const handleReviewSubmit = async (answers) => {
     console.log('Отзыв отправлен для точки:', reviewPointId, answers);
     // Перезагружаем точки после отправки отзыва, чтобы обновить оценки
@@ -206,6 +216,7 @@ const MapComponent = () => {
         popupRef={popupElement} 
         data={popupData}
         onReviewClick={handleReviewClick}
+        onViewReviewsClick={handleViewReviewsClick}
       />
       
       <ContextMenu 
@@ -227,6 +238,13 @@ const MapComponent = () => {
         pointId={reviewPointId}
         pointName={reviewPointName}
         onSubmit={handleReviewSubmit}
+      />
+
+      <ReviewsModal
+        isOpen={isReviewsModalOpen}
+        onClose={() => setIsReviewsModalOpen(false)}
+        pointId={reviewsPointId}
+        pointName={reviewsPointName}
       />
 
       <MapControls mode={mode} setMode={setMode} />

@@ -104,3 +104,33 @@
     transform: translateY(0);
 }
 
+.popup-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.popup-view-reviews-button {
+    width: 100%;
+    padding: 12px 20px;
+    background: #f7fafc;
+    color: #667eea;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.popup-view-reviews-button:hover {
+    background: #edf2f7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.popup-view-reviews-button:active {
+    transform: translateY(0);
+}
+

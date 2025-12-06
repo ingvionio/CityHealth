@@ -122,7 +122,7 @@ export const getPointCriteria = async (pointId) => {
 
 /**
  * Создать оценку (отзыв) для точки
- * @param {Object} markData - Данные оценки { point_id, user_id, question_ids, answers, weights }
+ * @param {Object} markData - Данные оценки { point_id, user_id, question_ids, answers, weights, comment, photos }
  * @returns {Promise<Object>} - Созданная оценка
  */
 export const createMark = async (markData) => {
@@ -138,6 +138,81 @@ export const createMark = async (markData) => {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.detail || errorData.message || 'Ошибка создания оценки';
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    if (error.message) {
+      throw error;
+    }
+    throw new Error('Ошибка подключения к серверу. Проверьте, что бекенд запущен.');
+  }
+};
+
+/**
+ * Получить все отзывы для точки
+ * @param {number} pointId - ID точки
+ * @returns {Promise<Array>} - Список отзывов
+ */
+export const getPointMarks = async (pointId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/marks?point_id=${pointId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      // Если эндпоинт не найден (404), возвращаем пустой массив вместо ошибки
+      if (response.status === 404) {
+        return [];
+      }
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.detail || errorData.message || 'Ошибка получения отзывов';
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    if (error.message) {
+      throw error;
+    }
+    throw new Error('Ошибка подключения к серверу. Проверьте, что бекенд запущен.');
+  }
+};
+
+/**
+ * Загрузить фото к отзыву
+ * @param {number} markId - ID отзыва
+ * @param {FileList} files - Файлы для загрузки
+ * @returns {Promise<Object>} - Результат загрузки
+ */
+export const uploadMarkPhotos = async (markId, files) => {
+  try {
+    const formData = new FormData();
+    Array.from(files).forEach((file) => {
+      formData.append('files', file);
+    });
+
+    const token = localStorage.getItem('authToken');
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/marks/${markId}/photos`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.detail || errorData.message || 'Ошибка загрузки фото';
       throw new Error(errorMessage);
     }
 

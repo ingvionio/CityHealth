@@ -211,6 +211,113 @@
   transform: translateY(0);
 }
 
+.review-comment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-comment-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.review-comment-textarea {
+  padding: 12px 14px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: all 0.2s;
+}
+
+.review-comment-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.review-comment-textarea:disabled {
+  background: #f7fafc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.review-photos-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-photos-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.review-photos-input {
+  padding: 8px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.review-photos-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.review-photos-input:disabled {
+  background: #f7fafc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.review-photos-preview {
+  margin-top: 12px;
+}
+
+.review-photos-preview p {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #718096;
+}
+
+.review-photos-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.review-photo-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.review-photo-preview {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+}
+
+.review-photo-name {
+  font-size: 11px;
+  color: #718096;
+  text-align: center;
+  word-break: break-all;
+  max-width: 100px;
+}
+
 /* Адаптивность */
 @media (max-width: 480px) {
   .review-modal {
@@ -222,6 +329,10 @@
   .review-modal-header,
   .review-modal-body {
     padding: 16px;
+  }
+
+  .review-photos-list {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   }
 }
 

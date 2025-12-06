@@ -140,6 +140,79 @@ export const getCurrentUser = () => {
 };
 
 /**
+ * Получить информацию о пользователе по ID
+ * @param {number} userId - ID пользователя
+ * @returns {Promise<Object>} - Данные пользователя
+ */
+export const getUserById = async (userId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.detail || errorData.message || 'Ошибка получения пользователя';
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    if (error.message) {
+      throw error;
+    }
+    throw new Error('Ошибка подключения к серверу. Проверьте, что бекенд запущен.');
+  }
+};
+
+/**
+ * Загрузить аватар пользователя
+ * @param {number} userId - ID пользователя
+ * @param {File} file - Файл изображения
+ * @returns {Promise<Object>} - Обновленные данные пользователя
+ */
+export const uploadAvatar = async (userId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}/avatar`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.detail || errorData.message || 'Ошибка загрузки аватара';
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    
+    // Обновляем данные пользователя в localStorage, если это текущий пользователь
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.id === userId) {
+      const updatedUser = {
+        ...currentUser,
+        avatar_url: data.avatar_url,
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+    
+    return data;
+  } catch (error) {
+    if (error.message) {
+      throw error;
+    }
+    throw new Error('Ошибка подключения к серверу. Проверьте, что бекенд запущен.');
+  }
+};
+
+/**
  * Проверка наличия токена
  * @returns {boolean}
  */

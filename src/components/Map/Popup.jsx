@@ -4,7 +4,7 @@ import { toLonLat } from 'ol/proj';
 import { getIndustries, getSubIndustries } from '../../services/pointsService';
 import './Popup.css';
 
-const Popup = ({ map, popupRef, data, onReviewClick }) => {
+const Popup = ({ map, popupRef, data, onReviewClick, onViewReviewsClick }) => {
   // Ref to store the overlay instance so we don't recreate it unnecessarily
   const overlayInstanceRef = useRef(null);
   const contentRef = useRef(null);
@@ -119,12 +119,20 @@ const Popup = ({ map, popupRef, data, onReviewClick }) => {
               </p>
             </div>
             {data.id && (
-              <button 
-                className="popup-review-button"
-                onClick={() => onReviewClick && onReviewClick(data.id, data.name)}
-              >
-                Оставить отзыв
-              </button>
+              <div className="popup-buttons">
+                <button 
+                  className="popup-review-button"
+                  onClick={() => onReviewClick && onReviewClick(data.id, data.name)}
+                >
+                  Оставить отзыв
+                </button>
+                <button 
+                  className="popup-view-reviews-button"
+                  onClick={() => onViewReviewsClick && onViewReviewsClick(data.id, data.name)}
+                >
+                  Посмотреть отзывы
+                </button>
+              </div>
             )}
         </div>
       )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getPointCriteria, createMark } from '../../services/pointsService';
+import { getPointCriteria, createMark, uploadMarkPhotos } from '../../services/pointsService';
 import { useAuth } from '../../contexts/AuthContext';
 import './ReviewModal.css';
 
@@ -7,6 +7,8 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
   const { user } = useAuth();
   const [criteria, setCriteria] = useState([]);
   const [answers, setAnswers] = useState({}); // { criterionId: { rating: 1-5, weight: 1-5 } }
+  const [comment, setComment] = useState('');
+  const [photos, setPhotos] = useState([]); // Array of File objects
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -15,6 +17,8 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
     if (isOpen && pointId) {
       loadCriteria();
       setAnswers({});
+      setComment('');
+      setPhotos([]);
       setError('');
     }
   }, [isOpen, pointId]);
@@ -62,6 +66,11 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
     });
   };
 
+  const handlePhotoChange = (e) => {
+    const files = Array.from(e.target.files);
+    setPhotos(files);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -103,11 +112,24 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
         question_ids: questionIds,
         answers: answerValues,
         weights: weights,
+        comment: comment.trim() || null,
+        photos: [], // Фото будут загружены отдельно после создания отзыва
       };
 
       console.log('Отправка оценки:', markData);
-      await createMark(markData);
+      const createdMark = await createMark(markData);
       console.log('Оценка успешно отправлена');
+
+      // Загружаем фото, если они есть
+      if (photos.length > 0 && createdMark.id) {
+        try {
+          await uploadMarkPhotos(createdMark.id, photos);
+          console.log('Фото успешно загружены');
+        } catch (photoError) {
+          console.error('Ошибка загрузки фото:', photoError);
+          // Не прерываем процесс, если фото не загрузились
+        }
+      }
 
       if (onSubmit) {
         onSubmit(answers);
@@ -189,6 +211,53 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
                   </div>
                 </div>
               ))}
+              
+              {/* Комментарий */}
+              <div className="review-comment-section">
+                <label className="review-comment-label">
+                  Комментарий (необязательно)
+                </label>
+                <textarea
+                  className="review-comment-textarea"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Напишите ваш отзыв..."
+                  rows={4}
+                  disabled={submitting}
+                />
+              </div>
+
+              {/* Загрузка фото */}
+              <div className="review-photos-section">
+                <label className="review-photos-label">
+                  Фотографии (необязательно)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoChange}
+                  className="review-photos-input"
+                  disabled={submitting}
+                />
+                {photos.length > 0 && (
+                  <div className="review-photos-preview">
+                    <p>Выбрано фото: {photos.length}</p>
+                    <div className="review-photos-list">
+                      {photos.map((photo, index) => (
+                        <div key={index} className="review-photo-item">
+                          <img
+                            src={URL.createObjectURL(photo)}
+                            alt={`Preview ${index + 1}`}
+                            className="review-photo-preview"
+                          />
+                          <span className="review-photo-name">{photo.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               
               <div className="review-modal-actions">
                 <button

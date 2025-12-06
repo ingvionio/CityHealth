@@ -1,17 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getUserProgress, getUserAchievements, getUserActivity } from '../services/gamificationService';
+import { getUserById, uploadAvatar } from '../services/authService';
 import './ProfilePage.css';
 
+const API_BASE_URL = 'http://localhost:8000';
+
 const ProfilePage = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(null);
   const [achievements, setAchievements] = useState([]);
   const [activities, setActivities] = useState([]);
   const [error, setError] = useState('');
+  const [userData, setUserData] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Функция для получения иконки по типу достижения
   const getAchievementIcon = (achievementType) => {
@@ -57,13 +63,15 @@ const ProfilePage = () => {
         setLoading(true);
         setError('');
 
-        // Загружаем прогресс, достижения и последние 5 активностей параллельно
-        const [progressData, achievementsData, activitiesData] = await Promise.all([
+        // Загружаем полные данные пользователя, прогресс, достижения и последние 5 активностей параллельно
+        const [userDataResponse, progressData, achievementsData, activitiesData] = await Promise.all([
+          getUserById(user.id),
           getUserProgress(user.id),
           getUserAchievements(user.id),
           getUserActivity(user.id, 5), // Загружаем последние 5 активностей
         ]);
 
+        setUserData(userDataResponse);
         setProgress(progressData);
 
         // Логируем сырые данные для отладки
@@ -147,6 +155,61 @@ const ProfilePage = () => {
 
   const handleOpenMap = () => {
     navigate('/map');
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    // Проверяем тип файла
+    if (!file.type.startsWith('image/')) {
+      setError('Пожалуйста, выберите изображение');
+      return;
+    }
+
+    // Проверяем размер файла (например, максимум 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Размер файла не должен превышать 5MB');
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      setError('');
+      const updatedUser = await uploadAvatar(user.id, file);
+      setUserData(updatedUser);
+      
+      // Обновляем данные пользователя в контексте
+      if (setUser) {
+        setUser({
+          ...user,
+          avatar_url: updatedUser.avatar_url,
+        });
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки аватара:', err);
+      setError(err.message || 'Ошибка загрузки аватара');
+    } finally {
+      setUploadingAvatar(false);
+      // Очищаем input, чтобы можно было загрузить тот же файл снова
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Получаем URL аватара
+  const getAvatarUrl = () => {
+    if (!userData?.avatar_url) return null;
+    // Если это полный URL, возвращаем как есть, иначе добавляем базовый URL
+    if (userData.avatar_url.startsWith('http')) {
+      return userData.avatar_url;
+    }
+    return `${API_BASE_URL}${userData.avatar_url.startsWith('/') ? '' : '/'}${userData.avatar_url}`;
   };
 
   // Функция для получения иконки по типу активности
@@ -235,9 +298,43 @@ const ProfilePage = () => {
         {/* Карточка профиля */}
         <div className="profile-card">
           <div className="profile-card-header">
-            <div className="profile-icon">👤</div>
+            <div className="profile-avatar-container">
+              {getAvatarUrl() ? (
+                <img 
+                  src={getAvatarUrl()} 
+                  alt="Аватар" 
+                  className="profile-avatar"
+                  onError={(e) => {
+                    // Если изображение не загрузилось, показываем иконку
+                    e.target.style.display = 'none';
+                    e.target.nextElementSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div 
+                className="profile-icon" 
+                style={{ display: getAvatarUrl() ? 'none' : 'flex' }}
+              >
+                👤
+              </div>
+              <button
+                className="avatar-upload-button"
+                onClick={handleAvatarClick}
+                disabled={uploadingAvatar}
+                title="Загрузить аватар"
+              >
+                {uploadingAvatar ? '⏳' : '📷'}
+              </button>
+            </div>
             <h2>{profileData.username}</h2>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            style={{ display: 'none' }}
+          />
           <div className="profile-info">
             <p className="profile-rank">{profileData.rank}</p>
             <p className="profile-stats">
@@ -258,7 +355,12 @@ const ProfilePage = () => {
             )}
           </div>
           <div className="profile-actions">
-            <button className="profile-button">Редактировать</button>
+            <button 
+              className="profile-button"
+              onClick={() => navigate('/admin')}
+            >
+              Админ-панель
+            </button>
           </div>
         </div>
 
