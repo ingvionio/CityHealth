@@ -52,6 +52,14 @@ const StarRating = ({ value, onChange, disabled }) => {
   );
 };
 
+const weightLabels = {
+  1: 'Не важно',
+  2: 'Мало важно',
+  3: 'Средне важно',
+  4: 'Важно',
+  5: 'Очень важно',
+};
+
 const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
   const { user } = useAuth();
   const [criteria, setCriteria] = useState([]);
@@ -61,6 +69,12 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const getWeightValue = (criterionId) => {
+    const value = answers[criterionId]?.weight;
+    if (value === '' || value === undefined || value === null) return 3;
+    return value;
+  };
 
   useEffect(() => {
     if (isOpen && pointId) {
@@ -83,7 +97,7 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
       data.forEach((criterion) => {
         initialAnswers[criterion.id] = {
           rating: '',
-          weight: '',
+          weight: 3,
         };
       });
       setAnswers(initialAnswers);
@@ -105,13 +119,28 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
     });
   };
 
-  const handleWeightChange = (criterionId, value) => {
-    setAnswers({
-      ...answers,
+  const handleWeightSlide = (criterionId, value) => {
+    const numeric = parseFloat(value);
+    setAnswers((prev) => ({
+      ...prev,
       [criterionId]: {
-        ...answers[criterionId],
-        weight: value ? parseInt(value) : '',
+        ...prev[criterionId],
+        weight: Number.isNaN(numeric) ? '' : numeric,
       },
+    }));
+  };
+
+  const handleWeightSnap = (criterionId) => {
+    setAnswers((prev) => {
+      const current = getWeightValue(criterionId);
+      const snapped = Math.min(5, Math.max(1, Math.round(current)));
+      return {
+        ...prev,
+        [criterionId]: {
+          ...prev[criterionId],
+          weight: snapped,
+        },
+      };
     });
   };
 
@@ -233,20 +262,47 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
                       <label className="review-rating-label">
                         Насколько это важно для вас (1-5):
                       </label>
-                      <select
-                        className="review-rating-select"
-                        value={answers[criterion.id]?.weight || ''}
-                        onChange={(e) => handleWeightChange(criterion.id, e.target.value)}
-                        required
-                        disabled={submitting}
-                      >
-                        <option value="">Выберите важность</option>
-                        <option value="1">1 - Не важно</option>
-                        <option value="2">2 - Мало важно</option>
-                        <option value="3">3 - Средне важно</option>
-                        <option value="4">4 - Важно</option>
-                        <option value="5">5 - Очень важно</option>
-                      </select>
+                      <div className="review-rating-slider-wrapper">
+                        {(() => {
+                          const weightValue = getWeightValue(criterion.id);
+                          const roundedWeight = Math.round(weightValue);
+                          return (
+                            <>
+                              <input
+                                type="range"
+                                min="1"
+                                max="5"
+                                step="0.01"
+                                className="review-rating-slider"
+                                value={weightValue}
+                                onChange={(e) => handleWeightSlide(criterion.id, e.target.value)}
+                                onPointerUp={() => handleWeightSnap(criterion.id)}
+                                onMouseUp={() => handleWeightSnap(criterion.id)}
+                                onTouchEnd={() => handleWeightSnap(criterion.id)}
+                                disabled={submitting}
+                                aria-label="Важноcть критерия от 1 до 5"
+                                list={`weight-ticks-${criterion.id}`}
+                              />
+                              <datalist id={`weight-ticks-${criterion.id}`}>
+                                {[1, 2, 3, 4, 5].map((tick) => (
+                                  <option key={tick} value={tick} />
+                                ))}
+                              </datalist>
+                              <div className="review-slider-ticks">
+                                {[1, 2, 3, 4, 5].map((tick) => (
+                                  <div key={tick} className="review-slider-tick">
+                                    <span className="review-slider-tick-dot" />
+                                    <span className="review-slider-tick-label">{tick}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="review-slider-value">
+                                {roundedWeight} — {weightLabels[roundedWeight]}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </div>

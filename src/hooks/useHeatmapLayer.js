@@ -9,73 +9,108 @@ import HeatmapLayer from 'ol/layer/Heatmap';
  */
 export const useHeatmapLayer = (map, vectorSource) => {
   const [isHeatmapVisible, setIsHeatmapVisible] = useState(false);
-  const heatmapLayerRef = useRef(null);
+  const positiveHeatmapLayerRef = useRef(null);
+  const negativeHeatmapLayerRef = useRef(null);
 
   useEffect(() => {
     if (!map || !vectorSource) return;
 
-    // Create heatmap layer with larger blur and radius for stronger merging
-    const heatmapLayer = new HeatmapLayer({
+    const commonHeatmapConfig = {
       source: vectorSource,
-      blur: 50,      // Larger blur for smoother blending
-      radius: 40,    // Bigger radius for stronger coverage
-      // Weight function based on mark parameter (0-5)
-      // Only shows points with mark > 3
+      blur: 50, // Larger blur for smoother blending
+      radius: 40, // Bigger radius for stronger coverage
+      visible: false, // Initially hidden
+    };
+
+    // Layer for marks >= 3 (existing behaviour)
+    const positiveHeatmapLayer = new HeatmapLayer({
+      ...commonHeatmapConfig,
+      opacity: 0.55, // Slightly transparent for softer greens
       weight: function (feature) {
         const mark = feature.get('mark');
-        
-        // Points with mark <= 3, null, undefined, or 0 are NOT displayed
-        if (mark === null || mark === undefined || mark <= 3) {
-          return 0; // Hidden - not displayed on heatmap
+        if (mark === null || mark === undefined || Number.isNaN(mark) || mark < 3) {
+          return 0;
         }
-        
-        // Map mark from (3, 5] to weight (0, 1]
-        // mark 3+ → weight ~0 (blue)
-        // mark 4 → weight 0.5 (yellow)
-        // mark 5 → weight 1 (green)
-        const normalizedWeight = (mark - 3) / 2; // (3,5] maps to (0,1]
-        return Math.min(Math.max(normalizedWeight, 0.01), 1); // Clamp to (0.01, 1]
+        // Map mark from [3, 5] to (0, 1]
+        const normalizedWeight = (mark - 3) / 2; // [0, 1]
+        return Math.min(Math.max(normalizedWeight, 0.05), 1);
       },
-      // Custom gradient: blue (low/mark~3) → yellow (middle/mark~4) → green (high/mark~5)
       gradient: [
-        '#2166ac', // Deep blue (weight 0, mark ~3)
-        '#4393c3', // Medium blue
-        '#92c5de', // Light blue
-        '#d1e5f0', // Very light blue
-        '#d9ef8b', // Light yellow/cream
-        '#d9ef8b', // Yellow (weight 0.5, mark ~4)
-        '#d9ef8b', // Yellow-green
-        '#a6d96a', // Light green
-        '#1a9850', // Medium green
-        '#1a9850', // Green (weight 1, mark 5)
+        '#2166ac', // Deep blue (mark ~3)
+        '#4393c3',
+        '#92c5de',
+        '#d1e5f0',
+        '#d9ef8b', // Yellow (mark ~4)
+        '#a6d96a',
+        '#59F059', // Green (mark ~5)
       ],
-      visible: false, // Initially hidden
     });
 
-    heatmapLayerRef.current = heatmapLayer;
-    map.addLayer(heatmapLayer);
+    // Layer for marks < 3 (new red heatmap)
+    const negativeHeatmapLayer = new HeatmapLayer({
+      ...commonHeatmapConfig,
+      weight: function (feature) {
+        const mark = feature.get('mark');
+        if (mark === null || mark === undefined || Number.isNaN(mark)) {
+          return 0;
+        }
+        if (mark >= 3) {
+          return 0; // handled by positive layer
+        }
+        // Stronger weight for worse marks (0 → 1, 3 → 0)
+        const clampedMark = Math.max(Math.min(mark, 3), 0);
+        const normalizedWeight = (3 - clampedMark) / 3; // [0,1]
+        return Math.min(Math.max(normalizedWeight, 0.05), 1);
+      },
+      // Shades of red/orange for low scores
+      gradient: [
+        '#800026',
+        '#bd0026',
+        '#e31a1c',
+        '#fc4e2a',
+        '#fd8d3c',
+        '#feb24c',
+        '#fed976',
+      ],
+    });
+
+    negativeHeatmapLayerRef.current = negativeHeatmapLayer;
+    positiveHeatmapLayerRef.current = positiveHeatmapLayer;
+
+    // Add both layers so they visually merge into a single heatmap
+    map.addLayer(negativeHeatmapLayer);
+    map.addLayer(positiveHeatmapLayer);
+    negativeHeatmapLayer.setZIndex(0);
+    positiveHeatmapLayer.setZIndex(1);
 
     return () => {
-      if (heatmapLayerRef.current) {
-        map.removeLayer(heatmapLayerRef.current);
-        heatmapLayerRef.current = null;
+      if (positiveHeatmapLayerRef.current) {
+        map.removeLayer(positiveHeatmapLayerRef.current);
+        positiveHeatmapLayerRef.current = null;
+      }
+      if (negativeHeatmapLayerRef.current) {
+        map.removeLayer(negativeHeatmapLayerRef.current);
+        negativeHeatmapLayerRef.current = null;
       }
     };
   }, [map, vectorSource]);
 
   // Function to toggle heatmap visibility
   const toggleHeatmap = () => {
-    if (heatmapLayerRef.current) {
-      const newVisibility = !isHeatmapVisible;
-      heatmapLayerRef.current.setVisible(newVisibility);
-      setIsHeatmapVisible(newVisibility);
+    const newVisibility = !isHeatmapVisible;
+    if (positiveHeatmapLayerRef.current) {
+      positiveHeatmapLayerRef.current.setVisible(newVisibility);
     }
+    if (negativeHeatmapLayerRef.current) {
+      negativeHeatmapLayerRef.current.setVisible(newVisibility);
+    }
+    setIsHeatmapVisible(newVisibility);
   };
 
   return {
-    heatmapLayer: heatmapLayerRef.current,
+    heatmapLayer: positiveHeatmapLayerRef.current,
+    negativeHeatmapLayer: negativeHeatmapLayerRef.current,
     isHeatmapVisible,
     toggleHeatmap,
   };
 };
-
