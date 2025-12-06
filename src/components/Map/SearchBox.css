@@ -19,26 +19,35 @@
   background: transparent;
   outline: none;
   font-size: 14px;
-  color: #333;
+  color: #2d3748;
   width: 200px;
+}
+
+.search-input::placeholder {
+  color: #a0aec0;
 }
 
 .search-button {
   border: none;
   background: transparent;
-  color: #666;
+  color: #718096;
   cursor: pointer;
   padding: 0 0 0 8px;
   font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: color 0.2s;
+}
+
+.search-button:hover {
+  color: #667eea;
 }
 
 .menu-button {
   border: none;
   background: transparent;
-  color: #666;
+  color: #718096;
   cursor: pointer;
   padding: 0 8px 0 0;
   font-size: 20px;
@@ -47,6 +56,11 @@
   justify-content: center;
   border-right: 1px solid #e0e0e0; /* Separator line */
   margin-right: 8px;
+  transition: color 0.2s;
+}
+
+.menu-button:hover {
+  color: #667eea;
 }
 
 /* Mobile Styles (max-width 768px) */
