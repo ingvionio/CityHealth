@@ -13,9 +13,9 @@ import AddPointModal from './AddPointModal';
 import ReviewModal from './ReviewModal';
 import ReviewsModal from './ReviewsModal';
 import SearchBox from './SearchBox';
-import ActivityMenu from './ActivityMenu'; // Import ActivityMenu
+import IndustryFilterMenu from './IndustryFilterMenu';
 import MapLayerToggles from './MapLayerToggles';
-import { getAllPoints } from '../../services/pointsService';
+import { getAllPoints, getIndustries } from '../../services/pointsService';
 import { fromLonLat } from 'ol/proj';
 import 'ol/ol.css';
 import Feature from 'ol/Feature';
@@ -34,8 +34,11 @@ const MapComponent = () => {
   const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
   const [reviewsPointId, setReviewsPointId] = useState(null);
   const [reviewsPointName, setReviewsPointName] = useState('');
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // State for ActivityMenu
-  const [pointsData, setPointsData] = useState([]); // Store points data for search autocomplete
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // State for filters menu
+  const [pointsData, setPointsData] = useState([]); // Store points data for search autocomplete (filtered)
+  const [allPoints, setAllPoints] = useState([]); // All points for filtering
+  const [industries, setIndustries] = useState([]); // For filter list
+  const [selectedIndustries, setSelectedIndustries] = useState([]); // ids
   
   const map = useMap(mapElement);
   const { vectorSource, arePointsVisible, togglePointsVisibility } = useMapLayers(map, mode);
@@ -48,73 +51,54 @@ const MapComponent = () => {
   useMapClick(map, popupElement, setPopupData);
   const { contextMenuPosition, clickCoordinates, closeContextMenu } = useMapContextMenu(map);
 
+  // Добавление точек в источник
+  const renderPoints = (points) => {
+    if (!vectorSource) return;
+    vectorSource.clear();
+    points.forEach((point, idx) => {
+      const coordinates = fromLonLat([point.longitude, point.latitude]);
+      const mark = point.mark !== undefined ? Number(point.mark) : null;
+      const color = getPointColor(mark);
+      const feature = new Feature({
+        geometry: new Point(coordinates),
+        name: point.name,
+        id: point.id,
+        industry_id: point.industry_id,
+        sub_industry_id: point.sub_industry_id,
+        creator_id: point.creator_id,
+      });
+      feature.set('color', color);
+      feature.set('mark', mark !== null && mark !== undefined && !isNaN(mark) ? mark : null);
+      if (idx < 3) {
+        console.log('Точка загружена:', {
+          name: point.name,
+          'point.mark (raw)': point.mark,
+          'mark (processed)': mark,
+          'feature.get("mark")': feature.get('mark'),
+          'mark type': typeof feature.get('mark')
+        });
+      }
+      vectorSource.addFeature(feature);
+    });
+    if (map) {
+      vectorSource.changed();
+      map.getLayers().forEach(layer => {
+        if (layer instanceof VectorLayer) {
+          layer.changed();
+        }
+      });
+    }
+  };
+
   // Функция загрузки точек с бекенда
   const loadPoints = async () => {
     if (!vectorSource) return;
 
     try {
       const points = await getAllPoints();
-      
-      // Store points data for search autocomplete
+      setAllPoints(points);
       setPointsData(points);
-      
-      // Очищаем все существующие точки перед загрузкой новых
-      vectorSource.clear();
-      
-      // Добавляем точки с бекенда
-      points.forEach((point) => {
-        // Преобразуем координаты из градусов (EPSG:4326) в метры (EPSG:3857)
-        const coordinates = fromLonLat([point.longitude, point.latitude]);
-        
-        // Получаем оценку точки напрямую из point.mark
-        // Бекенд возвращает mark как число (может быть 0, 3.5, 4.5 и т.д.)
-        const mark = point.mark !== undefined ? Number(point.mark) : null;
-        const color = getPointColor(mark);
-        
-        // Логируем для отладки первые несколько точек
-        if (points.indexOf(point) < 3) {
-          console.log('Точка:', point.name, 'point.mark (raw):', point.mark, 'mark (number):', mark, 'type:', typeof point.mark);
-        }
-        
-        const feature = new Feature({
-          geometry: new Point(coordinates),
-          name: point.name,
-          id: point.id,
-          industry_id: point.industry_id,
-          sub_industry_id: point.sub_industry_id,
-          creator_id: point.creator_id,
-        });
-        feature.set('color', color);
-        
-        // Устанавливаем mark ВСЕГДА, даже если он 0 или null
-        // Это важно для правильной работы стилей
-        feature.set('mark', mark !== null && mark !== undefined && !isNaN(mark) ? mark : null);
-        
-        // Проверяем, что mark установлен правильно
-        const checkMark = feature.get('mark');
-        if (points.indexOf(point) < 5) {
-          console.log('Точка загружена:', {
-            name: point.name,
-            'point.mark (raw)': point.mark,
-            'mark (processed)': mark,
-            'feature.get("mark")': checkMark,
-            'mark type': typeof checkMark
-          });
-        }
-        
-        vectorSource.addFeature(feature);
-      });
-      
-      // Принудительно обновляем стили после загрузки точек
-      if (map) {
-        vectorSource.changed();
-        // Обновляем все слои карты
-        map.getLayers().forEach(layer => {
-          if (layer instanceof VectorLayer) {
-            layer.changed();
-          }
-        });
-      }
+      renderPoints(points);
     } catch (error) {
       console.error('Ошибка загрузки точек:', error);
     }
@@ -160,6 +144,19 @@ const MapComponent = () => {
   useEffect(() => {
     loadPoints();
   }, [vectorSource]);
+
+  // Загружаем отрасли
+  useEffect(() => {
+    const fetchIndustries = async () => {
+      try {
+        const data = await getIndustries();
+        setIndustries(data || []);
+      } catch (err) {
+        console.error('Ошибка загрузки отраслей:', err);
+      }
+    };
+    fetchIndustries();
+  }, []);
 
   // Handlers
   const handleAddPointClick = () => {
@@ -220,9 +217,13 @@ const MapComponent = () => {
     }
   };
 
-  const handleSelectActivity = (activityId) => {
-      console.log("Selected activity:", activityId);
-      // Future: Filter points by activityId
+  const applyIndustryFilter = (industryIds) => {
+    setSelectedIndustries(industryIds);
+    const filtered = industryIds.length === 0
+      ? allPoints
+      : allPoints.filter((p) => industryIds.includes(p.industry_id));
+    setPointsData(filtered);
+    renderPoints(filtered);
   };
 
   const handleReviewClick = (pointId, pointName) => {
@@ -256,10 +257,12 @@ const MapComponent = () => {
       />
 
       {/* ActivityMenu Component */}
-      <ActivityMenu 
+      <IndustryFilterMenu 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
-        onSelect={handleSelectActivity} 
+        industries={industries}
+        selectedIds={selectedIndustries}
+        onApply={applyIndustryFilter}
       />
       
       {/* Map Layer Toggle Buttons */}
