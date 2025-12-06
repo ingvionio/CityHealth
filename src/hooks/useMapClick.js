@@ -44,8 +44,11 @@ export const useMapClick = (map, popupRef, setPopupData) => {
             if (setPopupData) {
                 setPopupData({
                     coordinates,
-                    name: properties.name || 'Unknown Point',
-                    type: properties.type || 'Unknown Type',
+                    name: properties.name || 'Неизвестная точка',
+                    id: properties.id,
+                    industry_id: properties.industry_id,
+                    sub_industry_id: properties.sub_industry_id,
+                    mark: properties.mark || 0,
                 });
             }
         }

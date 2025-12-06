@@ -4,8 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
-import React from 'react';
-import MapComponent from './components/Map/MapComponent';
+import MapPage from './pages/MapPage';
 import './App.css';
 
 function App() {
@@ -14,6 +13,14 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/map"
+          element={
+            <ProtectedRoute>
+              <MapPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/profile"
           element={
@@ -33,9 +40,6 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
-    <div className="App">
-      <MapComponent />
-    </div>
   );
 }
 

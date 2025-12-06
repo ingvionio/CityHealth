@@ -48,7 +48,59 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 .popup-content h3 {
-    margin: 0 0 10px 0;
-    color: #2e7d32; /* Green for OK status */
+    margin: 0 0 12px 0;
+    color: #1a202c;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.popup-info {
+    text-align: left;
+}
+
+.popup-info p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #2d3748;
+}
+
+.popup-info strong {
+    color: #1a202c;
+    font-weight: 600;
+}
+
+.popup-mark {
+    display: inline-block;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    min-width: 30px;
+    text-align: center;
+}
+
+.popup-review-button {
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.popup-review-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.popup-review-button:active {
+    transform: translateY(0);
 }
 

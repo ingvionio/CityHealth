@@ -1,73 +1,213 @@
 import React, { useEffect, useState } from 'react';
-import { fetchPointTypes, savePoint } from '../../services/api';
+import { getIndustries, getSubIndustries, createPoint } from '../../services/pointsService';
+import { useAuth } from '../../contexts/AuthContext';
+import { transform } from 'ol/proj';
 
 const AddPointModal = ({ isOpen, onClose, onSubmit, initialCoordinates }) => {
+  const { user } = useAuth();
   const [name, setName] = useState('');
-  const [selectedType, setSelectedType] = useState('');
-  const [types, setTypes] = useState([]);
+  const [selectedIndustryId, setSelectedIndustryId] = useState('');
+  const [selectedSubIndustryId, setSelectedSubIndustryId] = useState('');
+  const [industries, setIndustries] = useState([]);
+  const [subIndustries, setSubIndustries] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingSubIndustries, setLoadingSubIndustries] = useState(false);
+  const [error, setError] = useState('');
 
+  // Загружаем отрасли при открытии модалки
   useEffect(() => {
     if (isOpen) {
-      fetchPointTypes().then((data) => {
-        setTypes(data);
-        if (data.length > 0) setSelectedType(data[0].id);
-      });
+      loadIndustries();
       setName('');
+      setSelectedIndustryId('');
+      setSelectedSubIndustryId('');
+      setSubIndustries([]);
+      setError('');
     }
   }, [isOpen]);
 
+  // Загружаем подотрасли при выборе отрасли
+  useEffect(() => {
+    if (selectedIndustryId) {
+      loadSubIndustries(selectedIndustryId);
+    } else {
+      setSubIndustries([]);
+      setSelectedSubIndustryId('');
+    }
+  }, [selectedIndustryId]);
+
+  const loadIndustries = async () => {
+    try {
+      setLoading(true);
+      const data = await getIndustries();
+      setIndustries(data);
+      if (data.length > 0) {
+        setSelectedIndustryId(data[0].id.toString());
+      }
+    } catch (err) {
+      setError(err.message || 'Ошибка загрузки отраслей');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSubIndustries = async (industryId) => {
+    try {
+      setLoadingSubIndustries(true);
+      const data = await getSubIndustries(industryId);
+      setSubIndustries(data);
+      if (data.length > 0) {
+        setSelectedSubIndustryId(data[0].id.toString());
+      } else {
+        setSelectedSubIndustryId('');
+      }
+    } catch (err) {
+      setError(err.message || 'Ошибка загрузки подотраслей');
+      setSubIndustries([]);
+    } finally {
+      setLoadingSubIndustries(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     
-    const pointData = {
-      name,
-      type: selectedType,
-      longitude: initialCoordinates[0],
-      latitude: initialCoordinates[1],
-    };
+    if (!selectedIndustryId || !selectedSubIndustryId) {
+      setError('Пожалуйста, выберите отрасль и подотрасль');
+      return;
+    }
 
-    await savePoint(pointData);
+    if (!user?.id) {
+      setError('Пользователь не авторизован');
+      return;
+    }
+
+    if (!initialCoordinates || !Array.isArray(initialCoordinates) || initialCoordinates.length < 2) {
+      setError('Координаты не указаны');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
     
-    setLoading(false);
-    onSubmit(pointData);
-    onClose();
+    try {
+      // Преобразуем координаты из проекции карты (EPSG:3857) в градусы (EPSG:4326)
+      // OpenLayers по умолчанию использует EPSG:3857 (Web Mercator), где координаты в метрах
+      // Бекенд ожидает EPSG:4326 (WGS84), где координаты в градусах
+      const transformedCoords = transform(
+        initialCoordinates,
+        'EPSG:3857', // Проекция карты (Web Mercator)
+        'EPSG:4326'  // Географические координаты (градусы)
+      );
+
+      const longitude = parseFloat(transformedCoords[0]);
+      const latitude = parseFloat(transformedCoords[1]);
+
+      if (isNaN(latitude) || isNaN(longitude)) {
+        setError('Некорректные координаты');
+        setLoading(false);
+        return;
+      }
+
+      // Проверяем, что координаты в допустимых пределах
+      if (latitude < -90 || latitude > 90) {
+        setError('Широта должна быть от -90 до 90 градусов');
+        setLoading(false);
+        return;
+      }
+
+      if (longitude < -180 || longitude > 180) {
+        setError('Долгота должна быть от -180 до 180 градусов');
+        setLoading(false);
+        return;
+      }
+
+      const pointData = {
+        name: name.trim(),
+        latitude: latitude,
+        longitude: longitude,
+        industry_id: parseInt(selectedIndustryId),
+        sub_industry_id: parseInt(selectedSubIndustryId),
+        creator_id: parseInt(user.id),
+      };
+
+      console.log('Отправка данных точки:', pointData);
+      const createdPoint = await createPoint(pointData);
+      console.log('Точка успешно создана:', createdPoint);
+      
+      setLoading(false);
+      onSubmit(createdPoint);
+      onClose();
+    } catch (err) {
+      console.error('Ошибка создания точки:', err);
+      setError(err.message || 'Ошибка создания точки');
+      setLoading(false);
+    }
   };
+
+  if (!isOpen) return null;
 
   if (!isOpen) return null;
 
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <h2>Add New Point</h2>
+        <h2>Добавить новую точку</h2>
+        {error && <div style={styles.error}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <div style={styles.field}>
-            <label>Name:</label>
+            <label>Название:</label>
             <input 
               type="text" 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
               required 
               style={styles.input}
+              placeholder="Введите название точки"
             />
           </div>
           <div style={styles.field}>
-            <label>Type:</label>
+            <label>Отрасль:</label>
             <select 
-              value={selectedType} 
-              onChange={(e) => setSelectedType(e.target.value)}
+              value={selectedIndustryId} 
+              onChange={(e) => setSelectedIndustryId(e.target.value)}
               style={styles.select}
+              required
+              disabled={loading || industries.length === 0}
             >
-              {types.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              <option value="">Выберите отрасль</option>
+              {industries.map(industry => (
+                <option key={industry.id} value={industry.id}>{industry.name}</option>
+              ))}
+            </select>
+          </div>
+          <div style={styles.field}>
+            <label>Подотрасль:</label>
+            <select 
+              value={selectedSubIndustryId} 
+              onChange={(e) => setSelectedSubIndustryId(e.target.value)}
+              style={styles.select}
+              required
+              disabled={!selectedIndustryId || loadingSubIndustries || subIndustries.length === 0}
+            >
+              <option value="">
+                {!selectedIndustryId 
+                  ? 'Сначала выберите отрасль' 
+                  : loadingSubIndustries 
+                    ? 'Загрузка...' 
+                    : subIndustries.length === 0
+                      ? 'Нет подотраслей'
+                      : 'Выберите подотрасль'}
+              </option>
+              {subIndustries.map(subIndustry => (
+                <option key={subIndustry.id} value={subIndustry.id}>{subIndustry.name}</option>
               ))}
             </select>
           </div>
           <div style={styles.buttons}>
-             <button type="button" onClick={onClose} disabled={loading}>Cancel</button>
-             <button type="submit" disabled={loading}>
-               {loading ? 'Saving...' : 'Save'}
+             <button type="button" onClick={onClose} disabled={loading}>Отмена</button>
+             <button type="submit" disabled={loading || !selectedIndustryId || !selectedSubIndustryId}>
+               {loading ? 'Сохранение...' : 'Сохранить'}
              </button>
           </div>
         </form>
@@ -90,7 +230,8 @@ const styles = {
     backgroundColor: 'white',
     padding: '20px',
     borderRadius: '8px',
-    width: '300px',
+    width: '400px',
+    maxWidth: '90vw',
     color: 'black',
   },
   field: {
@@ -115,7 +256,17 @@ const styles = {
     display: 'flex',
     justifyContent: 'flex-end',
     gap: '10px',
-  }
+    marginTop: '20px',
+  },
+  error: {
+    backgroundColor: '#fed7d7',
+    border: '1px solid #fc8181',
+    borderRadius: '4px',
+    padding: '10px',
+    marginBottom: '15px',
+    color: '#c53030',
+    fontSize: '14px',
+  },
 };
 
 export default AddPointModal;

@@ -25,6 +25,26 @@ const ProfilePage = () => {
     return iconMap[achievementType] || '🏅';
   };
 
+  // Функция для определения звания на основе уровня
+  const getRankByLevel = (level) => {
+    const rankTiers = [
+      { min: 1, max: 10, rank: 'Новичок' },
+      { min: 11, max: 20, rank: 'Исследователь' },
+      { min: 21, max: 30, rank: 'Активист' },
+      { min: 31, max: 40, rank: 'Эксперт' },
+      { min: 41, max: 50, rank: 'Мастер' },
+      { min: 51, max: 60, rank: 'Легенда' },
+      { min: 61, max: 70, rank: 'Гуру' },
+      { min: 71, max: 80, rank: 'Мудрец' },
+      { min: 81, max: 90, rank: 'Властелин' },
+      { min: 91, max: Infinity, rank: 'Легенда города' },
+    ];
+
+    const currentLevel = level || 1;
+    const tier = rankTiers.find(t => currentLevel >= t.min && currentLevel <= t.max);
+    return tier ? tier.rank : 'Новичок';
+  };
+
   useEffect(() => {
     const loadProfileData = async () => {
       if (!user?.id) {
@@ -106,10 +126,12 @@ const ProfilePage = () => {
   }, [user?.id]);
 
   const profileData = {
-    name: user?.name || user?.username || 'Пользователь',
+    username: user?.username || user?.name || 'Пользователь',
     level: progress?.current_level || 1,
     points: progress?.current_xp || 0,
     city: 'Тула', // TODO: Получать с бекенда
+    rank: getRankByLevel(progress?.current_level || 1),
+    progressPercentage: progress?.progress_percentage || 0,
   };
 
   // ЗАГЛУШКА: История активности (будет получаться с бекенда)
@@ -136,9 +158,7 @@ const ProfilePage = () => {
   };
 
   const handleOpenMap = () => {
-    // TODO: Переход на страницу карты (когда будет готова)
-    // navigate('/map');
-    console.log('Страница карты пока не готова');
+    navigate('/map');
   };
 
   if (loading) {
@@ -168,7 +188,6 @@ const ProfilePage = () => {
             <button 
               onClick={handleOpenMap} 
               className="map-button"
-              disabled
             >
               Открыть карту
             </button>
@@ -178,22 +197,29 @@ const ProfilePage = () => {
         <div className="profile-card">
           <div className="profile-card-header">
             <div className="profile-icon">👤</div>
-            <h2>Имя</h2>
+            <h2>{profileData.username}</h2>
           </div>
           <div className="profile-info">
-            <p className="profile-name">{profileData.name}</p>
+            <p className="profile-rank">{profileData.rank}</p>
             <p className="profile-stats">
               Уровень {profileData.level} | {profileData.points} XP
             </p>
             {progress && (
-              <p className="profile-stats-detail">
-                Прогресс до следующего уровня: {progress.progress_percentage?.toFixed(1) || 0}%
-              </p>
+              <div className="level-progress-container">
+                <div className="level-progress-bar">
+                  <div 
+                    className="level-progress-fill"
+                    style={{ width: `${profileData.progressPercentage}%` }}
+                  ></div>
+                </div>
+                <p className="level-progress-text">
+                  Прогресс до следующего уровня: {profileData.progressPercentage.toFixed(1)}%
+                </p>
+              </div>
             )}
           </div>
           <div className="profile-actions">
             <button className="profile-button">Редактировать</button>
-            <button className="profile-button">Достижения</button>
           </div>
         </div>
 

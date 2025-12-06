@@ -1,13 +1,17 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import Overlay from 'ol/Overlay';
 import { toLonLat } from 'ol/proj';
+import { getIndustries, getSubIndustries } from '../../services/pointsService';
 import './Popup.css';
 
-const Popup = ({ map, popupRef, data }) => {
+const Popup = ({ map, popupRef, data, onReviewClick }) => {
   // Ref to store the overlay instance so we don't recreate it unnecessarily
   const overlayInstanceRef = useRef(null);
   const contentRef = useRef(null);
   const closerRef = useRef(null);
+  const [industryName, setIndustryName] = useState('');
+  const [subIndustryName, setSubIndustryName] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Initialize the Overlay ONCE when map is available
   useEffect(() => {
@@ -39,12 +43,37 @@ const Popup = ({ map, popupRef, data }) => {
     };
   }, [map]); // Remove popupRef from deps to avoid re-running if ref object identity changes (it shouldn't)
 
-  // Effect to update overlay position when data changes
+  // Effect to update overlay position when data changes and load industry names
   useEffect(() => {
       if (overlayInstanceRef.current && data && data.coordinates) {
           overlayInstanceRef.current.setPosition(data.coordinates);
+          
+          // Загружаем названия отрасли и подотрасли
+          if (data.industry_id && data.sub_industry_id) {
+            setLoading(true);
+            Promise.all([
+              getIndustries(),
+              getSubIndustries(data.industry_id)
+            ]).then(([industries, subIndustries]) => {
+              const industry = industries.find(i => i.id === data.industry_id);
+              const subIndustry = subIndustries.find(s => s.id === data.sub_industry_id);
+              setIndustryName(industry?.name || 'Неизвестная отрасль');
+              setSubIndustryName(subIndustry?.name || 'Неизвестная подотрасль');
+              setLoading(false);
+            }).catch((error) => {
+              console.error('Ошибка загрузки данных отрасли:', error);
+              setIndustryName('Ошибка загрузки');
+              setSubIndustryName('Ошибка загрузки');
+              setLoading(false);
+            });
+          } else {
+            setIndustryName('');
+            setSubIndustryName('');
+          }
       } else if (overlayInstanceRef.current && !data) {
           overlayInstanceRef.current.setPosition(undefined);
+          setIndustryName('');
+          setSubIndustryName('');
       }
   }, [data]);
 
@@ -74,10 +103,29 @@ const Popup = ({ map, popupRef, data }) => {
       <a href="#" className="ol-popup-closer" ref={closerRef} onClick={closePopup}></a>
       {data && (
         <div className="popup-content" ref={contentRef}>
-            <h3>Everything is OK</h3>
-            <p><strong>Name:</strong> {data.name}</p>
-            <p><strong>Type:</strong> {data.type}</p>
-            <p><small>Coords: {formattedCoordinates}</small></p>
+            <h3>{data.name || 'Неизвестная точка'}</h3>
+            <div className="popup-info">
+              <p>
+                <strong>Отрасль:</strong>{' '}
+                {loading ? 'Загрузка...' : (industryName || 'Не указана')}
+              </p>
+              <p>
+                <strong>Подотрасль:</strong>{' '}
+                {loading ? 'Загрузка...' : (subIndustryName || 'Не указана')}
+              </p>
+              <p>
+                <strong>Оценка:</strong>{' '}
+                <span className="popup-mark">{data.mark || 0}</span>
+              </p>
+            </div>
+            {data.id && (
+              <button 
+                className="popup-review-button"
+                onClick={() => onReviewClick && onReviewClick(data.id, data.name)}
+              >
+                Оставить отзыв
+              </button>
+            )}
         </div>
       )}
     </div>
