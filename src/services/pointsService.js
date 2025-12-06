@@ -186,6 +186,66 @@ export const getPointMarks = async (pointId) => {
 };
 
 /**
+ * Получить все отзывы пользователя
+ * @param {number} userId - ID пользователя
+ * @returns {Promise<Array>} - Список отзывов
+ */
+export const getUserMarks = async (userId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/marks?user_id=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.detail || errorData.message || 'Ошибка получения отзывов пользователя';
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    if (error.message) {
+      throw error;
+    }
+    throw new Error('Ошибка подключения к серверу. Проверьте, что бекенд запущен.');
+  }
+};
+
+/**
+ * Получить все комментарии пользователя
+ * @param {number} userId - ID пользователя
+ * @returns {Promise<Array>} - Список комментариев
+ */
+export const getUserComments = async (userId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}/comments`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.detail || errorData.message || 'Ошибка получения комментариев пользователя';
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    if (error.message) {
+      throw error;
+    }
+    throw new Error('Ошибка подключения к серверу. Проверьте, что бекенд запущен.');
+  }
+};
+
+/**
  * Загрузить фото к отзыву
  * @param {number} markId - ID отзыва
  * @param {FileList} files - Файлы для загрузки

@@ -8,6 +8,7 @@ import MapPage from './pages/MapPage';
 import ActivityPage from './pages/ActivityPage';
 import AdminPage from './pages/AdminPage';
 import CouponsPage from './pages/CouponsPage';
+import RankingsPage from './pages/RankingsPage';
 import './App.css';
 
 function App() {
@@ -53,6 +54,14 @@ function App() {
           element={
             <ProtectedRoute>
               <CouponsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rankings"
+          element={
+            <ProtectedRoute>
+              <RankingsPage />
             </ProtectedRoute>
           }
         />

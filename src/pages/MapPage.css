@@ -12,10 +12,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 8px 14px;
   background: white;
   border: 2px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 999px;
   font-size: 14px;
   font-weight: 600;
   color: #2d3748;
@@ -32,7 +32,27 @@
 }
 
 .map-profile-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #edf2f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 18px;
+}
+
+.map-profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+  background: #f7fafc;
+}
+
+.map-profile-name {
+  white-space: nowrap;
 }
 
 @media (max-width: 480px) {
