@@ -117,6 +117,41 @@ const MapComponent = () => {
     }
   };
 
+  // Обновление одной точки после оценки (без полной перерисовки)
+  const refreshPointMark = async (pointId) => {
+    if (!vectorSource || !pointId) return;
+    try {
+      const points = await getAllPoints();
+      const updatedPoint = points.find((p) => p.id === pointId);
+      if (!updatedPoint) return;
+
+      // Обновляем данные для поиска
+      setPointsData((prev) => {
+        if (!prev || prev.length === 0) return points;
+        return prev.map((p) => (p.id === pointId ? updatedPoint : p));
+      });
+
+      // Обновляем feature в vectorSource
+      const features = vectorSource.getFeatures();
+      const targetFeature = features.find((f) => f.get('id') === pointId);
+      if (targetFeature) {
+        const newMark = updatedPoint.mark !== undefined ? Number(updatedPoint.mark) : null;
+        targetFeature.set('mark', !Number.isNaN(newMark) ? newMark : null);
+        vectorSource.changed();
+        // Обновим слои карты, чтобы стиль перекрасился
+        if (map) {
+          map.getLayers().forEach((layer) => {
+            if (layer instanceof VectorLayer) {
+              layer.changed();
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка обновления точки после оценки:', error);
+    }
+  };
+
   // Загружаем точки с бекенда при монтировании компонента
   useEffect(() => {
     loadPoints();
@@ -198,8 +233,8 @@ const MapComponent = () => {
 
   const handleReviewSubmit = async (answers) => {
     console.log('Отзыв отправлен для точки:', reviewPointId, answers);
-    // Перезагружаем точки после отправки отзыва, чтобы обновить оценки
-    await loadPoints();
+    // Обновляем только одну точку (перекрасить маркер) вместо полной перезагрузки
+    await refreshPointMark(reviewPointId);
   };
 
   return (

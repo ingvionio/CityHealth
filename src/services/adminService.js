@@ -169,7 +169,7 @@ export const deleteIndustry = async (industryId) => {
 
 /**
  * Создать новую подотрасль
- * @param {Object} subIndustryData - Данные подотрасли { name, industry_id }
+ * @param {Object} subIndustryData - Данные подотрасли { name, industry_id, base_score }
  * @returns {Promise<Object>} - Созданная подотрасль
  */
 export const createSubIndustry = async (subIndustryData) => {
@@ -219,6 +219,89 @@ export const deleteSubIndustry = async (subIndustryId) => {
     }
     throw new Error('Ошибка подключения к серверу. Проверьте, что бекенд запущен.');
   }
+};
+
+/**
+ * АНАЛИТИКА (ANALYTICS)
+ */
+
+const buildAnalyticsParams = (startDate, endDate, topLimit, includeTopLimit = false) => {
+  const params = new URLSearchParams();
+  if (startDate) params.append('start_date', startDate);
+  if (endDate) params.append('end_date', endDate);
+  if (includeTopLimit && topLimit) params.append('top_limit', topLimit);
+  const query = params.toString();
+  return query ? `?${query}` : '';
+};
+
+export const getActivityMetrics = async (startDate, endDate, topLimit = 10) => {
+  const query = buildAnalyticsParams(startDate, endDate, topLimit, false);
+  const response = await fetch(`${API_BASE_URL}/api/v1/analytics/user-activity${query}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || 'Ошибка получения метрик активности';
+    throw new Error(errorMessage);
+  }
+  return response.json();
+};
+
+export const getPointsMetrics = async (startDate, endDate, topLimit = 10) => {
+  const query = buildAnalyticsParams(startDate, endDate, topLimit, true);
+  const response = await fetch(`${API_BASE_URL}/api/v1/analytics/points-overview${query}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || 'Ошибка получения метрик точек';
+    throw new Error(errorMessage);
+  }
+  return response.json();
+};
+
+export const getMarksMetrics = async (startDate, endDate, topLimit = 10) => {
+  const query = buildAnalyticsParams(startDate, endDate, topLimit, true);
+  const response = await fetch(`${API_BASE_URL}/api/v1/analytics/marks-overview${query}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || 'Ошибка получения метрик оценок';
+    throw new Error(errorMessage);
+  }
+  return response.json();
+};
+
+export const getUsersMetrics = async (startDate, endDate, topLimit = 10) => {
+  const query = buildAnalyticsParams(startDate, endDate, topLimit, true);
+  const response = await fetch(`${API_BASE_URL}/api/v1/analytics/users-top${query}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || 'Ошибка получения метрик пользователей';
+    throw new Error(errorMessage);
+  }
+  return response.json();
+};
+
+export const getCriteriaMetrics = async (startDate, endDate, topLimit = 10) => {
+  const query = buildAnalyticsParams(startDate, endDate, topLimit, false);
+  const response = await fetch(`${API_BASE_URL}/api/v1/analytics/criteria-scores${query}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || 'Ошибка получения метрик критериев';
+    throw new Error(errorMessage);
+  }
+  return response.json();
 };
 
 /**

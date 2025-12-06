@@ -7,6 +7,7 @@ import ProfilePage from './pages/ProfilePage';
 import MapPage from './pages/MapPage';
 import ActivityPage from './pages/ActivityPage';
 import AdminPage from './pages/AdminPage';
+import CouponsPage from './pages/CouponsPage';
 import './App.css';
 
 function App() {
@@ -44,6 +45,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/coupons"
+          element={
+            <ProtectedRoute>
+              <CouponsPage />
             </ProtectedRoute>
           }
         />

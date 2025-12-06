@@ -9,7 +9,12 @@ import {
   deleteIndustry,
   createSubIndustry,
   deleteSubIndustry,
-  deletePoint
+  deletePoint,
+  getActivityMetrics,
+  getPointsMetrics,
+  getMarksMetrics,
+  getUsersMetrics,
+  getCriteriaMetrics
 } from '../services/adminService';
 import { getIndustries, getSubIndustries, getAllPoints } from '../services/pointsService';
 import './AdminPage.css';
@@ -37,12 +42,28 @@ const AdminPage = () => {
   const [subIndustriesLoading, setSubIndustriesLoading] = useState(false);
   const [subIndustriesError, setSubIndustriesError] = useState('');
   const [newSubIndustryName, setNewSubIndustryName] = useState('');
+  const [newSubIndustryBaseScore, setNewSubIndustryBaseScore] = useState('');
   const [selectedIndustryForSub, setSelectedIndustryForSub] = useState('');
   
   // Points state
   const [points, setPoints] = useState([]);
   const [pointsLoading, setPointsLoading] = useState(false);
   const [pointsError, setPointsError] = useState('');
+
+  // Analytics state
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [topLimit, setTopLimit] = useState(10);
+  const [activityMetrics, setActivityMetrics] = useState(null);
+  const [pointsMetrics, setPointsMetrics] = useState(null);
+  const [marksMetrics, setMarksMetrics] = useState(null);
+  const [usersMetrics, setUsersMetrics] = useState(null);
+  const [criteriaMetrics, setCriteriaMetrics] = useState(null);
+  const [criteriaGrouped, setCriteriaGrouped] = useState([]);
+  const [criteriaGrouping, setCriteriaGrouping] = useState(false);
+  const [criteriaIndustryFilter, setCriteriaIndustryFilter] = useState('all');
 
   // Загрузка критериев
   const loadCriteria = async () => {
@@ -108,6 +129,62 @@ const AdminPage = () => {
     }
   };
 
+  // Загрузка аналитики
+  const loadAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      setAnalyticsError('');
+      const [activity, pointsM, marksM, usersM, criteriaM] = await Promise.all([
+        getActivityMetrics(startDate, endDate, topLimit),
+        getPointsMetrics(startDate, endDate, topLimit),
+        getMarksMetrics(startDate, endDate, topLimit),
+        getUsersMetrics(startDate, endDate, topLimit),
+        getCriteriaMetrics(startDate, endDate, topLimit),
+      ]);
+      setActivityMetrics(activity);
+      setPointsMetrics(pointsM);
+      setMarksMetrics(marksM);
+      setUsersMetrics(usersM);
+      setCriteriaMetrics(criteriaM);
+
+      // Группировка критериев по отраслям
+      setCriteriaGrouping(true);
+      try {
+        const inds = await getIndustries();
+        const criteriaMap = {};
+        // Загружаем критерии по отраслям и строим карту criterion_id -> industry_name
+        await Promise.all(
+          inds.map(async (ind) => {
+            const crits = await getCriteriaByIndustry(ind.id);
+            crits.forEach((c) => {
+              criteriaMap[c.id] = ind.name;
+            });
+          })
+        );
+        const grouped = {};
+        (criteriaM?.criteria_avg || []).forEach((c) => {
+          const industryName = criteriaMap[c.criteria_id] || 'Без отрасли';
+          if (!grouped[industryName]) grouped[industryName] = [];
+          grouped[industryName].push(c);
+        });
+        const groupedList = Object.entries(grouped).map(([industry, items]) => ({
+          industry,
+          items,
+        }));
+        setCriteriaGrouped(groupedList);
+      } catch (groupErr) {
+        console.error('Ошибка группировки критериев:', groupErr);
+        setCriteriaGrouped([]);
+      } finally {
+        setCriteriaGrouping(false);
+      }
+    } catch (err) {
+      setAnalyticsError(err.message || 'Ошибка загрузки аналитики');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
   // Загружаем данные при смене таба
   useEffect(() => {
     if (activeTab === 'criteria') {
@@ -124,6 +201,8 @@ const AdminPage = () => {
       }
     } else if (activeTab === 'points') {
       loadPoints();
+    } else if (activeTab === 'analytics') {
+      loadAnalytics();
     }
   }, [activeTab, selectedIndustryForSub, selectedIndustryForCriteria]);
 
@@ -208,13 +287,21 @@ const AdminPage = () => {
       return;
     }
 
+    const parsedBaseScore = Number(newSubIndustryBaseScore);
+    if (Number.isNaN(parsedBaseScore)) {
+      setSubIndustriesError('Укажите вес (base_score) числом');
+      return;
+    }
+
     try {
       setSubIndustriesError('');
       await createSubIndustry({ 
         name: newSubIndustryName.trim(),
-        industry_id: parseInt(selectedIndustryForSub)
+        industry_id: parseInt(selectedIndustryForSub),
+        base_score: parsedBaseScore
       });
       setNewSubIndustryName('');
+      setNewSubIndustryBaseScore('');
       await loadSubIndustries();
     } catch (err) {
       setSubIndustriesError(err.message || 'Ошибка создания подотрасли');
@@ -249,6 +336,43 @@ const AdminPage = () => {
     } catch (err) {
       setPointsError(err.message || 'Ошибка удаления точки');
     }
+  };
+
+  const formatDateValue = (value) => {
+    if (!value) return '';
+    try {
+      return new Date(value).toLocaleDateString('ru-RU');
+    } catch {
+      return value;
+    }
+  };
+
+  const renderBarChart = (items = [], labelKey, valueKey, color = '#667eea', suffix = '') => {
+    if (!items || items.length === 0) {
+      return <p className="admin-empty" style={{ padding: '16px' }}>Нет данных</p>;
+    }
+    const values = items.map((i) => Number(i[valueKey]) || 0);
+    const max = Math.max(...values, 1);
+    return (
+      <div className="bar-chart">
+        {items.map((item, idx) => {
+          const val = Number(item[valueKey]) || 0;
+          const width = Math.max((val / max) * 100, 2);
+          return (
+            <div key={idx} className="bar-row">
+              <span className="bar-label">{item[labelKey]}</span>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: `${width}%`, background: color }} />
+              </div>
+              <span className="bar-value">
+                {val}
+                {suffix}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -290,6 +414,12 @@ const AdminPage = () => {
             onClick={() => setActiveTab('points')}
           >
             Точки
+          </button>
+          <button 
+            className={`admin-tab ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            Аналитика
           </button>
         </div>
 
@@ -455,6 +585,17 @@ const AdminPage = () => {
                       required
                     />
                   </div>
+                  <div className="admin-form-group">
+                    <label>Вес (base_score)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newSubIndustryBaseScore}
+                      onChange={(e) => setNewSubIndustryBaseScore(e.target.value)}
+                      placeholder="Например, 1.0"
+                      required
+                    />
+                  </div>
                   <button type="submit" className="admin-button admin-button-primary">
                     Создать подотрасль
                   </button>
@@ -476,7 +617,12 @@ const AdminPage = () => {
                 ) : (
                   subIndustries.map((subIndustry) => (
                     <div key={subIndustry.id} className="admin-list-item">
-                      <span>{subIndustry.name || 'Без названия'}</span>
+                      <div className="admin-list-item-content">
+                        <span className="admin-item-name">{subIndustry.name || 'Без названия'}</span>
+                        <span className="admin-item-meta">
+                          Вес: {subIndustry.base_score !== undefined ? subIndustry.base_score : '—'}
+                        </span>
+                      </div>
                       <button
                         onClick={() => handleDeleteSubIndustry(subIndustry.id)}
                         className="admin-button admin-button-danger"
@@ -527,6 +673,246 @@ const AdminPage = () => {
                   ))
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Аналитика */}
+          {activeTab === 'analytics' && (
+            <div className="admin-section">
+              <h2>Аналитика</h2>
+
+              {/* Фильтры */}
+              <form
+                className="admin-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  loadAnalytics();
+                }}
+              >
+                <div className="analytics-filters">
+                  <div className="admin-form-group">
+                    <label>Дата начала</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="admin-form-group">
+                    <label>Дата окончания</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="admin-form-group">
+                    <label>Top N</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={topLimit}
+                      onChange={(e) => setTopLimit(Number(e.target.value) || 10)}
+                    />
+                  </div>
+                  <div className="admin-form-group" style={{ alignSelf: 'flex-end' }}>
+                    <button type="submit" className="admin-button admin-button-primary" disabled={analyticsLoading}>
+                      {analyticsLoading ? 'Загрузка...' : 'Обновить'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              {analyticsError && <div className="admin-error">{analyticsError}</div>}
+
+              {analyticsLoading && <p>Загрузка аналитики...</p>}
+
+              {!analyticsLoading && (
+                <div className="analytics-grid">
+                  {/* Активность */}
+                  <div className="analytics-card">
+                    <h3>Активность по дням</h3>
+                    <div className="analytics-charts">
+                      <div>
+                        <p className="chart-title">Пользователи</p>
+                        {renderBarChart(activityMetrics?.users_by_day?.map((i) => ({
+                          label: formatDateValue(i.date),
+                          value: i.count,
+                        })), 'label', 'value', '#667eea')}
+                      </div>
+                      <div>
+                        <p className="chart-title">Точки</p>
+                        {renderBarChart(activityMetrics?.points_by_day?.map((i) => ({
+                          label: formatDateValue(i.date),
+                          value: i.count,
+                        })), 'label', 'value', '#48bb78')}
+                      </div>
+                      <div>
+                        <p className="chart-title">Оценки</p>
+                        {renderBarChart(activityMetrics?.marks_by_day?.map((i) => ({
+                          label: formatDateValue(i.date),
+                          value: i.count,
+                        })), 'label', 'value', '#ed8936')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Точки */}
+                  <div className="analytics-card">
+                    <h3>Точки</h3>
+                    <div className="analytics-charts">
+                      <div>
+                        <p className="chart-title">Точки по отраслям</p>
+                        {renderBarChart(pointsMetrics?.points_by_industry?.map((i) => ({
+                          label: i.industry,
+                          value: i.count,
+                        })), 'label', 'value', '#667eea')}
+                      </div>
+                      <div>
+                        <p className="chart-title">Средняя оценка по отраслям</p>
+                        {renderBarChart(pointsMetrics?.avg_rating_by_industry?.map((i) => ({
+                          label: i.industry,
+                          value: i.avg_mark || 0,
+                        })), 'label', 'value', '#f6ad55', '')}
+                      </div>
+                    </div>
+                    <div className="analytics-lists">
+                      <div className="list-block">
+                        <p className="chart-title">Top точки</p>
+                        {pointsMetrics?.top_points?.length ? (
+                          pointsMetrics.top_points.map((p) => (
+                            <div key={p.id} className="admin-list-item">
+                              <span className="admin-item-name">{p.name}</span>
+                              <span className="admin-item-meta">Оценка: {p.mark ?? '—'}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="admin-empty" style={{ padding: '12px' }}>Нет данных</p>
+                        )}
+                      </div>
+                      <div className="list-block">
+                        <p className="chart-title">Худшие точки</p>
+                        {pointsMetrics?.worst_points?.length ? (
+                          pointsMetrics.worst_points.map((p) => (
+                            <div key={p.id} className="admin-list-item">
+                              <span className="admin-item-name">{p.name}</span>
+                              <span className="admin-item-meta">Оценка: {p.mark ?? '—'}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="admin-empty" style={{ padding: '12px' }}>Нет данных</p>
+                        )}
+                      </div>
+                      <div className="list-block">
+                        <p className="chart-title">Точки без оценок</p>
+                        {pointsMetrics?.points_without_marks?.length ? (
+                          pointsMetrics.points_without_marks.map((p) => (
+                            <div key={p.id} className="admin-list-item">
+                              <span className="admin-item-name">{p.name}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="admin-empty" style={{ padding: '12px' }}>Нет данных</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Оценки */}
+                  <div className="analytics-card">
+                    <h3>Оценки</h3>
+                    <div className="analytics-charts">
+                      <div>
+                        <p className="chart-title">Оценки по отраслям</p>
+                        {renderBarChart(marksMetrics?.marks_by_industry?.map((i) => ({
+                          label: i.industry,
+                          value: i.count,
+                        })), 'label', 'value', '#63b3ed')}
+                      </div>
+                    </div>
+                    <div className="analytics-stats">
+                      <div className="stat-card">
+                        <p className="stat-label">Фото всего</p>
+                        <p className="stat-value">{marksMetrics?.photos_total ?? 0}</p>
+                      </div>
+                      <div className="stat-card">
+                        <p className="stat-label">Соотношение оценок к точкам</p>
+                        <p className="stat-value">
+                          {marksMetrics?.marks_to_points_ratio !== null && marksMetrics?.marks_to_points_ratio !== undefined
+                            ? marksMetrics.marks_to_points_ratio.toFixed(2)
+                            : '—'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Пользователи */}
+                  <div className="analytics-card">
+                    <h3>Пользователи</h3>
+                    <div className="list-block">
+                      {usersMetrics?.top_users?.length ? (
+                        usersMetrics.top_users.map((u) => (
+                          <div key={u.id} className="admin-list-item">
+                            <span className="admin-item-name">{u.username || `ID ${u.id}`}</span>
+                            <span className="admin-item-meta">Активность: {u.activity}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="admin-empty" style={{ padding: '12px' }}>Нет данных</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Критерии */}
+                  <div className="analytics-card">
+                    <div className="analytics-card-header">
+                      <h3>Критерии (средние оценки)</h3>
+                      {criteriaGrouped.length > 0 && (
+                        <select
+                          className="admin-select criteria-filter"
+                          value={criteriaIndustryFilter}
+                          onChange={(e) => setCriteriaIndustryFilter(e.target.value)}
+                        >
+                          <option value="all">Все отрасли</option>
+                          {criteriaGrouped.map((group) => (
+                            <option key={group.industry} value={group.industry}>
+                              {group.industry}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    {criteriaGrouping ? (
+                      <p>Группировка критериев...</p>
+                    ) : criteriaGrouped.length === 0 ? (
+                      renderBarChart(criteriaMetrics?.criteria_avg?.map((c) => ({
+                        label: c.text || `ID ${c.criteria_id}`,
+                        value: c.avg || 0,
+                      })), 'label', 'value', '#9f7aea')
+                    ) : (
+                      <div className="analytics-lists">
+                        {criteriaGrouped
+                          .filter((group) => criteriaIndustryFilter === 'all' || group.industry === criteriaIndustryFilter)
+                          .map((group) => (
+                          <div key={group.industry} className="list-block">
+                            <p className="chart-title">{group.industry}</p>
+                            {renderBarChart(
+                              group.items.map((c) => ({
+                                label: c.text || `ID ${c.criteria_id}`,
+                                value: c.avg || 0,
+                              })),
+                              'label',
+                              'value',
+                              '#9f7aea'
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

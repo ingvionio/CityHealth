@@ -357,6 +357,12 @@ const ProfilePage = () => {
           <div className="profile-actions">
             <button 
               className="profile-button"
+              onClick={() => navigate('/coupons')}
+            >
+              Бонусы и купоны
+            </button>
+            <button 
+              className="profile-button"
               onClick={() => navigate('/admin')}
             >
               Админ-панель
