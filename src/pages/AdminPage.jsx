@@ -49,6 +49,8 @@ const AdminPage = () => {
   const [points, setPoints] = useState([]);
   const [pointsLoading, setPointsLoading] = useState(false);
   const [pointsError, setPointsError] = useState('');
+  const [pointsSearch, setPointsSearch] = useState('');
+  const [pointsIndustryFilter, setPointsIndustryFilter] = useState('');
 
   // Analytics state
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
@@ -201,6 +203,7 @@ const AdminPage = () => {
       }
     } else if (activeTab === 'points') {
       loadPoints();
+      loadIndustries();
     } else if (activeTab === 'analytics') {
       loadAnalytics();
     }
@@ -641,6 +644,34 @@ const AdminPage = () => {
             <div className="admin-section">
               <h2>Управление точками</h2>
 
+              {/* Фильтры */}
+              <div className="admin-form" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 16 }}>
+                <div className="admin-form-group">
+                  <label>Поиск по названию</label>
+                  <input
+                    type="text"
+                    value={pointsSearch}
+                    onChange={(e) => setPointsSearch(e.target.value)}
+                    placeholder="Введите название точки"
+                  />
+                </div>
+                <div className="admin-form-group">
+                  <label>Фильтр по отрасли</label>
+                  <select
+                    className="admin-select"
+                    value={pointsIndustryFilter}
+                    onChange={(e) => setPointsIndustryFilter(e.target.value)}
+                  >
+                    <option value="">Все отрасли</option>
+                    {industries.map((ind) => (
+                      <option key={ind.id} value={ind.id}>
+                        {ind.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {pointsError && (
                 <div className="admin-error">{pointsError}</div>
               )}
@@ -652,25 +683,36 @@ const AdminPage = () => {
                 ) : points.length === 0 ? (
                   <p className="admin-empty">Точки не найдены</p>
                 ) : (
-                  points.map((point) => (
-                    <div key={point.id} className="admin-list-item">
-                      <div className="admin-list-item-content">
-                        <span className="admin-item-name">{point.name || 'Без названия'}</span>
-                        <span className="admin-item-meta">
-                          Координаты: {point.latitude?.toFixed(4)}, {point.longitude?.toFixed(4)}
-                        </span>
-                        {point.mark && (
-                          <span className="admin-item-meta">Оценка: {point.mark}</span>
-                        )}
+                  points
+                    .filter((p) =>
+                      pointsIndustryFilter
+                        ? p.industry_id === Number(pointsIndustryFilter)
+                        : true
+                    )
+                    .filter((p) =>
+                      pointsSearch.trim()
+                        ? (p.name || '').toLowerCase().includes(pointsSearch.trim().toLowerCase())
+                        : true
+                    )
+                    .map((point) => (
+                      <div key={point.id} className="admin-list-item">
+                        <div className="admin-list-item-content">
+                          <span className="admin-item-name">{point.name || 'Без названия'}</span>
+                          <span className="admin-item-meta">
+                            Координаты: {point.latitude?.toFixed(4)}, {point.longitude?.toFixed(4)}
+                          </span>
+                          {point.mark !== undefined && point.mark !== null && (
+                            <span className="admin-item-meta">Оценка: {point.mark}</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDeletePoint(point.id)}
+                          className="admin-button admin-button-danger"
+                        >
+                          Удалить
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleDeletePoint(point.id)}
-                        className="admin-button admin-button-danger"
-                      >
-                        Удалить
-                      </button>
-                    </div>
-                  ))
+                    ))
                 )}
               </div>
             </div>
@@ -730,34 +772,6 @@ const AdminPage = () => {
 
               {!analyticsLoading && (
                 <div className="analytics-grid">
-                  {/* Активность */}
-                  <div className="analytics-card">
-                    <h3>Активность по дням</h3>
-                    <div className="analytics-charts">
-                      <div>
-                        <p className="chart-title">Пользователи</p>
-                        {renderBarChart(activityMetrics?.users_by_day?.map((i) => ({
-                          label: formatDateValue(i.date),
-                          value: i.count,
-                        })), 'label', 'value', '#667eea')}
-                      </div>
-                      <div>
-                        <p className="chart-title">Точки</p>
-                        {renderBarChart(activityMetrics?.points_by_day?.map((i) => ({
-                          label: formatDateValue(i.date),
-                          value: i.count,
-                        })), 'label', 'value', '#48bb78')}
-                      </div>
-                      <div>
-                        <p className="chart-title">Оценки</p>
-                        {renderBarChart(activityMetrics?.marks_by_day?.map((i) => ({
-                          label: formatDateValue(i.date),
-                          value: i.count,
-                        })), 'label', 'value', '#ed8936')}
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Точки */}
                   <div className="analytics-card">
                     <h3>Точки</h3>
@@ -774,12 +788,13 @@ const AdminPage = () => {
                         {renderBarChart(
                           (pointsMetrics?.avg_rating_by_industry || []).map((i) => ({
                             label: i.industry,
-                            value: i.avg_mark || 0,
+                            value: Number(Number(i.avg_mark || 0).toFixed(2)),
                           })),
                           'label',
                           'value',
                           '#f6ad55',
-                          ''
+                          '',
+                          5
                         )}
                       </div>
                     </div>
@@ -855,7 +870,7 @@ const AdminPage = () => {
                       renderBarChart(
                         criteriaMetrics?.criteria_avg?.map((c) => ({
                           label: c.text || `ID ${c.criteria_id}`,
-                          value: c.avg || 0,
+                          value: Number(Number(c.avg || 0).toFixed(2)),
                         })),
                         'label',
                         'value',
@@ -873,7 +888,7 @@ const AdminPage = () => {
                             {renderBarChart(
                               group.items.map((c) => ({
                                 label: c.text || `ID ${c.criteria_id}`,
-                                value: c.avg || 0,
+                                value: Number(Number(c.avg || 0).toFixed(2)),
                               })),
                               'label',
                               'value',
