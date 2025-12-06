@@ -24,8 +24,8 @@ export const useMap = (containerRef) => {
           }),
         ],
         view: new View({
-          center: fromLonLat([0, 0]), // Default center
-          zoom: 2,
+          center: fromLonLat([37.617348, 54.193122]),
+          zoom: 15,
         }),
       });
       

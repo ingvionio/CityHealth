@@ -5,11 +5,39 @@ const styleCache = {};
 const pointStyleCache = {};
 
 /**
+ * WebGL Points Layer style for high-performance rendering
+ * Uses flat style format for WebGLPointsLayer
+ * Color is based on the 'mark' attribute (1-5 scale)
+ */
+export const webglPointStyle = {
+  'circle-radius': 8,
+  // Derive color from mark directly in the shader with a simple expression
+  'circle-fill-color': [
+    'case',
+    ['all', ['has', 'mark'], ['>', ['get', 'mark'], 0]],
+    [
+      'interpolate',
+      ['linear'],
+      ['get', 'mark'],
+      1, '#FF0000',
+      2, '#FF6600',
+      3, '#FFD700',
+      4, '#90EE90',
+      5, '#00FF00'
+    ],
+    '#808080'
+  ],
+  'circle-stroke-color': '#ffffff',
+  'circle-stroke-width': 2,
+  'circle-opacity': 0.9,
+};
+
+/**
  * Получить цвет точки в зависимости от оценки (mark)
  * @param {number} mark - Оценка от 1 до 5
  * @returns {string} - HEX цвет
  */
-const getPointColor = (mark) => {
+export const getPointColor = (mark) => {
   // Если mark = null или undefined, используем серый цвет
   if (mark === null || mark === undefined) {
     return '#808080'; // Серый для точек без оценки
@@ -136,29 +164,7 @@ export const clusterStyle = (feature) => {
       pointName = feature.get('name');
     }
     
-    const color = getPointColor(mark);
-    
-    // Логируем для отладки всех точек с оценками
-    if (mark !== null && mark !== undefined && mark > 0) {
-      console.log('Стиль точки:', {
-        name: pointName,
-        mark: mark,
-        markType: typeof mark,
-        color: color,
-        isCluster: !!features,
-        featuresCount: features ? features.length : 0
-      });
-    }
-    
-    return new Style({
-      image: new CircleStyle({
-        radius: 8,
-        fill: new Fill({ color }),
-        stroke: new Stroke({
-          color: '#fff',
-          width: 2,
-        }),
-      }),
-    });
+    // Reuse cached point styles by mark to avoid re-creating Style objects
+    return getPointStyle(mark);
   }
 };

@@ -3,6 +3,55 @@ import { getPointCriteria, createMark, uploadMarkPhotos } from '../../services/p
 import { useAuth } from '../../contexts/AuthContext';
 import './ReviewModal.css';
 
+// Star Rating Component
+const StarRating = ({ value, onChange, disabled }) => {
+  const [hoverValue, setHoverValue] = useState(0);
+
+  const handleClick = (rating) => {
+    if (!disabled) {
+      onChange(rating);
+    }
+  };
+
+  const handleMouseEnter = (rating) => {
+    // Only show hover effect if no value is set yet
+    if (!disabled && !value) {
+      setHoverValue(rating);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoverValue(0);
+  };
+
+  return (
+    <div className="star-rating" onMouseLeave={handleMouseLeave}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const isFilled = star <= (hoverValue || value);
+        return (
+          <span
+            key={star}
+            className={`star ${isFilled ? 'star-filled' : 'star-empty'} ${disabled ? 'star-disabled' : ''}`}
+            onClick={() => handleClick(star)}
+            onMouseEnter={() => handleMouseEnter(star)}
+            role="button"
+            tabIndex={disabled ? -1 : 0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                handleClick(star);
+              }
+            }}
+            aria-label={`${star} звезд`}
+          >
+            ★
+          </span>
+        );
+      })}
+      {value > 0 && <span className="star-rating-text">{value} из 5</span>}
+    </div>
+  );
+};
+
 const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
   const { user } = useAuth();
   const [criteria, setCriteria] = useState([]);
@@ -174,20 +223,11 @@ const ReviewModal = ({ isOpen, onClose, pointId, pointName, onSubmit }) => {
                       <label className="review-rating-label">
                         Насколько вам нравится (1-5):
                       </label>
-                      <select
-                        className="review-rating-select"
-                        value={answers[criterion.id]?.rating || ''}
-                        onChange={(e) => handleRatingChange(criterion.id, e.target.value)}
-                        required
+                      <StarRating
+                        value={answers[criterion.id]?.rating || 0}
+                        onChange={(rating) => handleRatingChange(criterion.id, rating)}
                         disabled={submitting}
-                      >
-                        <option value="">Выберите оценку</option>
-                        <option value="1">1 - Не нравится</option>
-                        <option value="2">2 - Скорее не нравится</option>
-                        <option value="3">3 - Нейтрально</option>
-                        <option value="4">4 - Скорее нравится</option>
-                        <option value="5">5 - Очень нравится</option>
-                      </select>
+                      />
                     </div>
                     <div className="review-rating-group">
                       <label className="review-rating-label">

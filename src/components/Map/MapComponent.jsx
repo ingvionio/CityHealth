@@ -5,6 +5,7 @@ import { useMapInteractions } from '../../hooks/useMapInteractions';
 import { useMapClick } from '../../hooks/useMapClick';
 import { useMapContextMenu } from '../../hooks/useMapContextMenu';
 import { useHeatmapLayer } from '../../hooks/useHeatmapLayer';
+import { getPointColor } from '../../utils/mapStyles';
 import { MapControls } from './MapControls';
 import Popup from './Popup';
 import ContextMenu from './ContextMenu';
@@ -68,6 +69,7 @@ const MapComponent = () => {
         // Получаем оценку точки напрямую из point.mark
         // Бекенд возвращает mark как число (может быть 0, 3.5, 4.5 и т.д.)
         const mark = point.mark !== undefined ? Number(point.mark) : null;
+        const color = getPointColor(mark);
         
         // Логируем для отладки первые несколько точек
         if (points.indexOf(point) < 3) {
@@ -82,6 +84,7 @@ const MapComponent = () => {
           sub_industry_id: point.sub_industry_id,
           creator_id: point.creator_id,
         });
+        feature.set('color', color);
         
         // Устанавливаем mark ВСЕГДА, даже если он 0 или null
         // Это важно для правильной работы стилей
@@ -137,6 +140,7 @@ const MapComponent = () => {
       if (targetFeature) {
         const newMark = updatedPoint.mark !== undefined ? Number(updatedPoint.mark) : null;
         targetFeature.set('mark', !Number.isNaN(newMark) ? newMark : null);
+        targetFeature.set('color', getPointColor(!Number.isNaN(newMark) ? newMark : null));
         vectorSource.changed();
         // Обновим слои карты, чтобы стиль перекрасился
         if (map) {
@@ -169,15 +173,17 @@ const MapComponent = () => {
       // Преобразуем координаты из градусов (EPSG:4326) в метры (EPSG:3857)
       const coordinates = fromLonLat([pointData.longitude, pointData.latitude]);
       
+      const mark = pointData.mark || pointData.rating || 0;
       const feature = new Feature({
         geometry: new Point(coordinates),
         name: pointData.name,
         id: pointData.id,
         industry_id: pointData.industry_id,
         sub_industry_id: pointData.sub_industry_id,
-        mark: pointData.mark || pointData.rating || 0, // Оценка точки (может быть mark или rating)
+        mark,
         creator_id: pointData.creator_id,
       });
+      feature.set('color', getPointColor(mark));
       vectorSource.addFeature(feature);
     }
     setIsModalOpen(false);
