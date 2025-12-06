@@ -347,12 +347,12 @@ const AdminPage = () => {
     }
   };
 
-  const renderBarChart = (items = [], labelKey, valueKey, color = '#667eea', suffix = '') => {
+  const renderBarChart = (items = [], labelKey, valueKey, color = '#667eea', suffix = '', maxValueOverride = null) => {
     if (!items || items.length === 0) {
       return <p className="admin-empty" style={{ padding: '16px' }}>Нет данных</p>;
     }
     const values = items.map((i) => Number(i[valueKey]) || 0);
-    const max = Math.max(...values, 1);
+    const max = maxValueOverride !== null ? maxValueOverride : Math.max(...values, 1);
     return (
       <div className="bar-chart">
         {items.map((item, idx) => {
@@ -771,49 +771,15 @@ const AdminPage = () => {
                       </div>
                       <div>
                         <p className="chart-title">Средняя оценка по отраслям</p>
-                        {renderBarChart(pointsMetrics?.avg_rating_by_industry?.map((i) => ({
-                          label: i.industry,
-                          value: i.avg_mark || 0,
-                        })), 'label', 'value', '#f6ad55', '')}
-                      </div>
-                    </div>
-                    <div className="analytics-lists">
-                      <div className="list-block">
-                        <p className="chart-title">Top точки</p>
-                        {pointsMetrics?.top_points?.length ? (
-                          pointsMetrics.top_points.map((p) => (
-                            <div key={p.id} className="admin-list-item">
-                              <span className="admin-item-name">{p.name}</span>
-                              <span className="admin-item-meta">Оценка: {p.mark ?? '—'}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="admin-empty" style={{ padding: '12px' }}>Нет данных</p>
-                        )}
-                      </div>
-                      <div className="list-block">
-                        <p className="chart-title">Худшие точки</p>
-                        {pointsMetrics?.worst_points?.length ? (
-                          pointsMetrics.worst_points.map((p) => (
-                            <div key={p.id} className="admin-list-item">
-                              <span className="admin-item-name">{p.name}</span>
-                              <span className="admin-item-meta">Оценка: {p.mark ?? '—'}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="admin-empty" style={{ padding: '12px' }}>Нет данных</p>
-                        )}
-                      </div>
-                      <div className="list-block">
-                        <p className="chart-title">Точки без оценок</p>
-                        {pointsMetrics?.points_without_marks?.length ? (
-                          pointsMetrics.points_without_marks.map((p) => (
-                            <div key={p.id} className="admin-list-item">
-                              <span className="admin-item-name">{p.name}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="admin-empty" style={{ padding: '12px' }}>Нет данных</p>
+                        {renderBarChart(
+                          (pointsMetrics?.avg_rating_by_industry || []).map((i) => ({
+                            label: i.industry,
+                            value: i.avg_mark || 0,
+                          })),
+                          'label',
+                          'value',
+                          '#f6ad55',
+                          ''
                         )}
                       </div>
                     </div>
@@ -886,10 +852,17 @@ const AdminPage = () => {
                     {criteriaGrouping ? (
                       <p>Группировка критериев...</p>
                     ) : criteriaGrouped.length === 0 ? (
-                      renderBarChart(criteriaMetrics?.criteria_avg?.map((c) => ({
-                        label: c.text || `ID ${c.criteria_id}`,
-                        value: c.avg || 0,
-                      })), 'label', 'value', '#9f7aea')
+                      renderBarChart(
+                        criteriaMetrics?.criteria_avg?.map((c) => ({
+                          label: c.text || `ID ${c.criteria_id}`,
+                          value: c.avg || 0,
+                        })),
+                        'label',
+                        'value',
+                        '#9f7aea',
+                        '',
+                        5
+                      )
                     ) : (
                       <div className="analytics-lists">
                         {criteriaGrouped
@@ -904,7 +877,9 @@ const AdminPage = () => {
                               })),
                               'label',
                               'value',
-                              '#9f7aea'
+                              '#9f7aea',
+                              '',
+                              5
                             )}
                           </div>
                         ))}

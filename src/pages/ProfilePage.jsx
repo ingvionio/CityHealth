@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getUserProgress, getUserAchievements, getUserActivity } from '../services/gamificationService';
+import { getUserMarks, getAllPoints, getUserComments } from '../services/pointsService';
 import { getUserById, uploadAvatar } from '../services/authService';
 import './ProfilePage.css';
 
@@ -16,6 +17,13 @@ const ProfilePage = () => {
   const [achievements, setAchievements] = useState([]);
   const [activities, setActivities] = useState([]);
   const [error, setError] = useState('');
+  const [userMarks, setUserMarks] = useState([]);
+  const [marksLoading, setMarksLoading] = useState(false);
+  const [marksError, setMarksError] = useState('');
+  const [userComments, setUserComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState('');
+  const [commentsCollapsed, setCommentsCollapsed] = useState(false);
   const [userData, setUserData] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -62,13 +70,20 @@ const ProfilePage = () => {
       try {
         setLoading(true);
         setError('');
+        setMarksLoading(true);
+        setMarksError('');
+        setCommentsLoading(true);
+        setCommentsError('');
 
-        // Загружаем полные данные пользователя, прогресс, достижения и последние 5 активностей параллельно
-        const [userDataResponse, progressData, achievementsData, activitiesData] = await Promise.all([
+        // Загружаем данные параллельно
+        const [userDataResponse, progressData, achievementsData, activitiesData, marksData, pointsData, commentsData] = await Promise.all([
           getUserById(user.id),
           getUserProgress(user.id),
           getUserAchievements(user.id),
           getUserActivity(user.id, 5), // Загружаем последние 5 активностей
+          getUserMarks(user.id),
+          getAllPoints(),
+          getUserComments(user.id),
         ]);
 
         setUserData(userDataResponse);
@@ -121,6 +136,31 @@ const ProfilePage = () => {
         
         // Сохраняем активности
         setActivities(activitiesData || []);
+
+        // Обрабатываем отзывы пользователя, мапим названия точек
+        const pointsMap = {};
+        (pointsData || []).forEach((p) => {
+          pointsMap[p.id] = p.name;
+        });
+        const formattedMarks = (marksData || []).map((m) => ({
+          id: m.id,
+          point_id: m.point_id,
+          point_name: pointsMap[m.point_id] || `Точка #${m.point_id}`,
+          total_score: m.total_score ?? m.mark ?? null,
+          comment: m.comment || '',
+          created_at: m.created_at,
+        }));
+        setUserMarks(formattedMarks);
+
+        // Комментарии пользователя
+        const formattedComments = (commentsData || []).map((c) => ({
+          id: c.id,
+          point_id: c.point_id,
+          point_name: pointsMap[c.point_id] || `Точка #${c.point_id}`,
+          comment: c.comment || '',
+          created_at: c.created_at,
+        }));
+        setUserComments(formattedComments);
       } catch (err) {
         console.error('Ошибка загрузки данных профиля:', err);
         setError(err.message || 'Ошибка загрузки данных');
@@ -131,8 +171,14 @@ const ProfilePage = () => {
         });
         setAchievements([]);
         setActivities([]);
+        setUserMarks([]);
+        setMarksError(err.message || 'Ошибка загрузки отзывов');
+        setUserComments([]);
+        setCommentsError(err.message || 'Ошибка загрузки комментариев');
       } finally {
         setLoading(false);
+        setMarksLoading(false);
+        setCommentsLoading(false);
       }
     };
 
@@ -363,6 +409,12 @@ const ProfilePage = () => {
             </button>
             <button 
               className="profile-button"
+              onClick={() => navigate('/rankings')}
+            >
+              Рейтинг пользователей
+            </button>
+            <button 
+              className="profile-button"
               onClick={() => navigate('/admin')}
             >
               Админ-панель
@@ -411,6 +463,54 @@ const ProfilePage = () => {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Карточка моих комментариев (сворачиваемая) */}
+        <div className="profile-card">
+          <div className="profile-card-header">
+            <h2>Мои комментарии</h2>
+            <button
+              className="section-toggle"
+              onClick={() => setCommentsCollapsed((prev) => !prev)}
+            >
+              {commentsCollapsed ? 'Показать' : 'Свернуть'}
+            </button>
+          </div>
+          <p className="profile-card-subtitle">Комментарии, которые вы оставили</p>
+          {commentsError && (
+            <div className="error-message" style={{ marginBottom: '16px' }}>
+              {commentsError}
+            </div>
+          )}
+          {!commentsCollapsed && (
+            <>
+              {commentsLoading ? (
+                <p style={{ textAlign: 'center', color: '#718096', padding: '20px' }}>Загрузка...</p>
+              ) : userComments.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#718096', padding: '20px' }}>
+                  Комментарии не найдены
+                </p>
+              ) : (
+                <div className="reviews-list">
+                  {userComments.map((c) => (
+                    <div key={c.id} className="review-item">
+                      <div className="review-item-header">
+                        <span className="review-point">{c.point_name}</span>
+                      </div>
+                      {c.comment && <p className="review-comment">{c.comment}</p>}
+                      <div className="review-meta">
+                        <span>
+                          {c.created_at
+                            ? new Date(c.created_at).toLocaleDateString('ru-RU')
+                            : 'Дата неизвестна'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 

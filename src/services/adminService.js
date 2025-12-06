@@ -305,6 +305,42 @@ export const getCriteriaMetrics = async (startDate, endDate, topLimit = 10) => {
 };
 
 /**
+ * Топ пользователей по вовлеченности (engagement)
+ * @param {string} startDate
+ * @param {string} endDate
+ * @param {number} topLimit
+ */
+export const getUsersEngagement = async (startDate, endDate, topLimit = 20) => {
+  const query = buildAnalyticsParams(startDate, endDate, topLimit, true);
+  const response = await fetch(`${API_BASE_URL}/api/v1/analytics/users-top/engagement${query}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || 'Ошибка получения рейтинга пользователей';
+    throw new Error(errorMessage);
+  }
+  return response.json();
+};
+
+/**
+ * Получить список всех пользователей (для уровней)
+ */
+export const getUsersList = async () => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/users`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || 'Ошибка получения пользователей';
+    throw new Error(errorMessage);
+  }
+  return response.json();
+};
+
+/**
  * ТОЧКИ (POINTS)
  */
 
